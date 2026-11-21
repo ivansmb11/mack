@@ -2,6 +2,12 @@
 # One-time setup of Mack on the Mac mini. Safe to re-run: every step checks before acting.
 set -euo pipefail
 
+if [[ ! -t 0 ]]; then
+  echo "bootstrap.sh es interactivo (pide confirmaciones, tokens y corre 'hermes -p mack setup')." >&2
+  echo "Córrelo en una terminal real: Terminal.app, o SSH con 'ssh -t'." >&2
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$HOME/.mack"
 DOMAIN="mack.ivanmendoza.dev"
