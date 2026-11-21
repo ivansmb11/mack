@@ -1,0 +1,12 @@
+name: matt-pocock-thinking
+description: Skills de pensamiento y comunicación. Grilling de planes, cuestionarios, handoffs, enseñanza y escritura para agentes (la usa el Factory para redactar el SOUL de cada DSA).
+repo: https://github.com/mattpocock/skills.git
+commit: 5863806dd4e15c63174bee4e7515a4256792ecfa
+skills:
+  - skills/productivity/grilling
+  - skills/productivity/grill-me
+  - skills/productivity/to-questionnaire
+  - skills/productivity/handoff
+  - skills/productivity/teach
+  - skills/productivity/wait-what
+  - skills/productivity/writing-for-agents

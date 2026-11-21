@@ -1,0 +1,23 @@
+domain: mack.ivanmendoza.dev
+
+server:
+  host: 127.0.0.1
+  port: 7777
+
+hermes:
+  bin: hermes
+  home: ~/.hermes
+  orchestrator: mack
+  orchestratorPort: 8642
+  dsaPortRange: [8650, 8699]
+  # Secrets copied from the orchestrator's .env into every new DSA.
+  # Messaging-platform tokens are excluded on purpose: only Mack talks to you.
+  inheritEnv: [ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, NOUS_API_KEY, GEMINI_API_KEY]
+
+dataDir: ~/.mack
+
+# USD per million tokens. Models missing here are recorded as "unpriced":
+# tokens still count toward token budgets, USD budgets ignore them.
+# Fill in from each provider's pricing page, keyed by model id:
+#   <model-id>: { inputPerMTok: <usd>, outputPerMTok: <usd> }
+pricing: {}

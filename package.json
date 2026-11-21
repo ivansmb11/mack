@@ -1,0 +1,31 @@
+{
+  "name": "mack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mack: agente personal sobre Hermes Agent con Factory de DSAs, orquestador Matrix y Ledger de tokens/suscripciones",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "mackctl": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "mcp": "node src/mcp.ts",
+    "mackctl": "node src/cli.ts",
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "hono": "^4.13.19",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
