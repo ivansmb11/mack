@@ -8,6 +8,21 @@ if [[ ! -t 0 ]]; then
   exit 1
 fi
 
+# `ssh host 'cmd'` runs a non-interactive shell that skips ~/.zshrc, so Homebrew, nvm and
+# ~/.local/bin (where Hermes installs) are missing from PATH. Load them explicitly.
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+export PATH="$HOME/.local/bin:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+if ! command -v node >/dev/null; then
+  for nvm_sh in /opt/homebrew/opt/nvm/nvm.sh "$NVM_DIR/nvm.sh"; do
+    if [[ -s "$nvm_sh" ]]; then
+      set +u; . "$nvm_sh"; set -u
+      break
+    fi
+  done
+fi
+command -v node >/dev/null || { echo "No encuentro node (ni vía nvm). Instala Node ≥ 24." >&2; exit 1; }
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$HOME/.mack"
 DOMAIN="mack.ivanmendoza.dev"
