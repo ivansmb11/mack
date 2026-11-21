@@ -5,12 +5,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$HOME/.mack"
 DOMAIN="mack.ivanmendoza.dev"
-TUNNEL_NAME="mack"
+PORT=7777
 LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 
 step() { printf '\n\033[1;32m▸ %s\033[0m\n' "$*"; }
-render() { sed -e "s#__ROOT__#$ROOT#g" -e "s#__HOME__#$HOME#g" -e "s#__NODE__#$(command -v node)#g" \
-               -e "s#__CLOUDFLARED__#$(command -v cloudflared)#g" -e "s#__TUNNEL_ID__#${TUNNEL_ID:-}#g" "$1"; }
+# launchd starts jobs with a bare PATH; the control plane shells out to hermes, git and docker.
+render() { sed -e "s#__ROOT__#$ROOT#g" -e "s#__HOME__#$HOME#g" -e "s#__NODE__#$(command -v node)#g" -e "s#__PATH__#$PATH#g" \
+               -e "s#__CLOUDFLARED__#$(command -v cloudflared || true)#g" -e "s#__TUNNEL_ID__#${TUNNEL_ID:-}#g" "$1"; }
+reload_agent() {
+  launchctl bootout "gui/$(id -u)/$1" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENTS/$1.plist"
+}
 
 step "Hermes Agent"
 if ! command -v hermes >/dev/null; then
@@ -21,49 +26,69 @@ if ! command -v hermes >/dev/null; then
 fi
 hermes --version
 
-step "Dependencias del control plane"
-(cd "$ROOT" && npm ci)
+step "Build (NestJS + Prisma)"
+(cd "$ROOT" && npm ci && npm run build)
 
 step "Secretos en $DATA/.env"
 mkdir -p "$DATA/logs"
-if ! grep -q '^MACK_TOKEN=' "$DATA/.env" 2>/dev/null; then
+touch "$DATA/.env" && chmod 600 "$DATA/.env"
+if ! grep -q '^MACK_TOKEN=' "$DATA/.env"; then
   echo "MACK_TOKEN=$(openssl rand -hex 32)" >> "$DATA/.env"
-  chmod 600 "$DATA/.env"
-  echo "MACK_TOKEN generado. Lo necesitas para el dashboard y para clientes en $DOMAIN/v1."
+  echo "MACK_TOKEN generado. Lo necesitas para el dashboard y para clientes de /v1."
 fi
+if ! grep -qE '^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=' "$DATA/.env"; then
+  echo "El Factory necesita credenciales de Claude Code. Con tu suscripción Max: corre 'claude setup-token'."
+  read -rsp "Pega el CLAUDE_CODE_OAUTH_TOKEN (Enter para omitir): " cc_token; echo
+  [[ -n "$cc_token" ]] && echo "CLAUDE_CODE_OAUTH_TOKEN=$cc_token" >> "$DATA/.env"
+fi
+
+step "Base de datos (Prisma migrate)"
+(cd "$ROOT" && npx prisma migrate deploy)
+
+step "Imagen del sandbox del Factory (Sandcastle)"
+docker build -q -t sandcastle:mack --build-arg AGENT_UID="$(id -u)" --build-arg AGENT_GID="$(id -g)" -f "$ROOT/factory/Dockerfile" "$ROOT/factory"
+
+step "Control plane (launchd)"
+render "$ROOT/infra/launchd/dev.ivanmendoza.mack.plist.template" > "$LAUNCH_AGENTS/dev.ivanmendoza.mack.plist"
+reload_agent dev.ivanmendoza.mack
+for _ in $(seq 1 30); do curl -fs "http://127.0.0.1:$PORT/healthz" >/dev/null && break; sleep 1; done
+curl -fs "http://127.0.0.1:$PORT/healthz" >/dev/null || { echo "El control plane no arrancó; revisa $DATA/logs/server.err.log"; exit 1; }
 
 step "Perfil orquestador 'mack'"
 if [[ ! -d "$HOME/.hermes/profiles/mack" ]]; then
-  (cd "$ROOT" && node src/cli.ts init --no-start)
+  (cd "$ROOT" && node dist/cli.js init --no-start)
   echo "Configura proveedor de modelo y Telegram para Mack (API keys, bot token):"
   hermes -p mack setup
 fi
 hermes -p mack gateway install
 hermes -p mack gateway start
 
-step "Control plane (launchd)"
-render "$ROOT/infra/launchd/dev.ivanmendoza.mack.plist.template" > "$LAUNCH_AGENTS/dev.ivanmendoza.mack.plist"
-launchctl bootout "gui/$(id -u)/dev.ivanmendoza.mack" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENTS/dev.ivanmendoza.mack.plist"
-
-step "Cloudflare Tunnel → $DOMAIN"
-[[ -f "$HOME/.cloudflared/cert.pem" ]] || cloudflared tunnel login
-cloudflared tunnel info "$TUNNEL_NAME" >/dev/null 2>&1 || cloudflared tunnel create "$TUNNEL_NAME"
-TUNNEL_ID="$(cloudflared tunnel list --name "$TUNNEL_NAME" --output json | node -e 'process.stdin.on("data",d=>console.log(JSON.parse(d)[0].id))')"
-render "$ROOT/infra/cloudflared/config.template.yml" > "$HOME/.cloudflared/mack.yml"
-cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" || echo "(el registro DNS ya existe)"
-render "$ROOT/infra/launchd/dev.ivanmendoza.mack-tunnel.plist.template" > "$LAUNCH_AGENTS/dev.ivanmendoza.mack-tunnel.plist"
-launchctl bootout "gui/$(id -u)/dev.ivanmendoza.mack-tunnel" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENTS/dev.ivanmendoza.mack-tunnel.plist"
+step "Acceso remoto"
+echo "  1) Tailscale (privado, recomendado): https://<este-mac>.<tu-tailnet>.ts.net"
+echo "  2) Cloudflare Tunnel (público):      https://$DOMAIN"
+read -rp "Elige [1/2] (Enter = 1): " expose
+if [[ "${expose:-1}" == "2" ]]; then
+  [[ -f "$HOME/.cloudflared/cert.pem" ]] || cloudflared tunnel login
+  cloudflared tunnel info mack >/dev/null 2>&1 || cloudflared tunnel create mack
+  TUNNEL_ID="$(cloudflared tunnel list --name mack --output json | node -e 'process.stdin.on("data",d=>console.log(JSON.parse(d)[0].id))')"
+  render "$ROOT/infra/cloudflared/config.template.yml" > "$HOME/.cloudflared/mack.yml"
+  cloudflared tunnel route dns mack "$DOMAIN" || echo "(el registro DNS ya existe)"
+  render "$ROOT/infra/launchd/dev.ivanmendoza.mack-tunnel.plist.template" > "$LAUNCH_AGENTS/dev.ivanmendoza.mack-tunnel.plist"
+  reload_agent dev.ivanmendoza.mack-tunnel
+  URL="https://$DOMAIN"
+  echo "Protege $DOMAIN con Cloudflare Access (Zero Trust → Applications)."
+else
+  TAILSCALE="$(command -v tailscale || echo /Applications/Tailscale.app/Contents/MacOS/Tailscale)"
+  "$TAILSCALE" serve --bg "$PORT"
+  URL="$("$TAILSCALE" serve status --json | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const w=Object.keys(JSON.parse(d).Web||{})[0]||"";console.log("https://"+w.replace(/:443$/,""))})')"
+fi
 
 step "Listo"
 cat <<MSG
-  Dashboard:  https://$DOMAIN
-  OpenAI API: https://$DOMAIN/v1   (Bearer MACK_TOKEN, model "mack")
+  Dashboard:  $URL
+  OpenAI API: $URL/v1   (Bearer MACK_TOKEN, model "mack")
   Telegram:   el bot que configuraste en 'hermes -p mack setup'
 
-  Recomendado: protege $DOMAIN con Cloudflare Access (Zero Trust → Applications),
-  con bypass por service token para /v1 si usas clientes móviles.
-
-  Crea tu primer DSA:  node src/cli.ts create dev
+  Primer DSA:        npm run mackctl -- create dev
+  Primer trabajo:    npm run mackctl -- build ~/repos/<repo> "<ticket>"
 MSG

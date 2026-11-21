@@ -17,7 +17,7 @@
   table { width:100%; border-collapse:collapse; }
   td, th { text-align:left; padding:.35rem .25rem; border-bottom:1px solid var(--line); font-weight:normal; }
   th { color:var(--dim); font-size:.75rem; }
-  .up { color:var(--accent); } .down { color:var(--bad); } .num { text-align:right; font-variant-numeric: tabular-nums; }
+  .up { color:var(--accent); } .down { color:var(--bad); } .warn { color:var(--warn); } .num { text-align:right; font-variant-numeric: tabular-nums; }
   .big { font-size:1.8rem; color:var(--accent); }
   textarea, input, select, button { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:.5rem; }
   textarea { width:100%; min-height:6rem; resize:vertical; }
@@ -27,10 +27,11 @@
 </style>
 </head>
 <body>
-<header><h1>MACK</h1><span>factory · matrix · ledger</span><span id="status"></span></header>
+<header><h1>MACK</h1><span>dsa · matrix · factory · ledger</span><span id="status"></span></header>
 <main>
   <section><h2>Agentes</h2><table id="agents"></table></section>
   <section><h2>Ledger · mes actual</h2><div id="ledger"></div></section>
+  <section style="grid-column: 1 / -1"><h2>Factory · Sandcastle</h2><table id="jobs"></table></section>
   <section style="grid-column: 1 / -1">
     <h2>Matrix</h2>
     <textarea id="task" placeholder="Tarea para un DSA…"></textarea>
@@ -45,13 +46,19 @@
   const api = async (path, init = {}) => {
     const res = await fetch(path, { ...init, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } });
     if (res.status === 401) { localStorage.removeItem("mackToken"); location.reload(); }
-    return res.json();
+    return res.status === 204 ? null : res.json();
   };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const fmt = (n) => Intl.NumberFormat("es-MX").format(n);
 
   async function refresh() {
-    const [agents, health, ledger] = await Promise.all([api("/api/agents"), api("/api/agents/health"), api("/api/ledger/summary")]);
+    const [agents, health, ledger, jobs] = await Promise.all([
+      api("/api/agents"), api("/api/agents/health"), api("/api/ledger/summary"), api("/api/factory/jobs?limit=10"),
+    ]);
+    const jobColor = { done: "up", failed: "down", incomplete: "warn" };
+    $("jobs").innerHTML = "<tr><th>job</th><th>repo</th><th>rama</th><th>flujo</th><th>estado</th><th class=\"num\">commits</th></tr>" +
+      jobs.map((j) => `<tr title="${esc(j.task)}"><td>${j.id}</td><td>${esc(j.repo.split("/").pop())}</td><td>${esc(j.branch)}</td>
+        <td>${j.workflow}</td><td class="${jobColor[j.status] ?? ""}">${j.status}</td><td class="num">${j.commits.length}</td></tr>`).join("");
     const up = Object.fromEntries(health.map((h) => [h.agent, h.up]));
     $("agents").innerHTML = "<tr><th>nombre</th><th>tipo</th><th>modelo</th><th>puerto</th><th></th></tr>" +
       agents.map((a) => `<tr><td>${esc(a.name)}</td><td>${a.kind}</td><td>${esc(a.model)}</td><td>${a.port}</td>
@@ -72,7 +79,7 @@
     $("out").textContent = "…";
     const body = { task: $("task").value, ...($("agent").value ? { agent: $("agent").value } : {}) };
     const r = await api("/api/matrix/dispatch", { method: "POST", body: JSON.stringify(body) });
-    $("out").textContent = r.error ?? `[${r.agent || "—"} · ${r.status}]\n\n${r.content}`;
+    $("out").textContent = r.message ?? `[${r.agent || "—"} · ${r.status}]\n\n${r.content}`;
     refresh();
   };
   refresh(); setInterval(refresh, 30_000);

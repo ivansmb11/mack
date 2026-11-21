@@ -8,24 +8,44 @@
     "node": ">=24"
   },
   "bin": {
-    "mackctl": "src/cli.ts"
+    "mackctl": "dist/cli.js"
   },
   "scripts": {
-    "start": "node src/server.ts",
-    "mcp": "node src/mcp.ts",
-    "mackctl": "node src/cli.ts",
-    "test": "node --test 'test/**/*.test.ts'",
-    "typecheck": "tsc --noEmit"
+    "postinstall": "prisma generate",
+    "build": "prisma generate && nest build",
+    "start": "prisma migrate deploy && node dist/main.js",
+    "dev": "nest start --watch",
+    "mackctl": "node dist/cli.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.11",
+    "@ai-hero/sandcastle": "^0.14.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "hono": "^4.13.19",
+    "@nestjs/common": "^12.6.0",
+    "@nestjs/core": "^12.6.0",
+    "@nestjs/platform-express": "^12.6.0",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@nestjs/cli": "^12.0.15",
+    "@nestjs/testing": "^12.6.0",
+    "@swc/cli": "^0.8.2",
+    "@swc/core": "^1.16.22",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
-    "typescript": "^7.0.2"
+    "@types/supertest": "^7.2.1",
+    "better-sqlite3": "^13.2.0",
+    "prisma": "^7.10.1",
+    "supertest": "^7.3.2",
+    "typescript": "^6.0.3",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^5.1.1"
   }
 }

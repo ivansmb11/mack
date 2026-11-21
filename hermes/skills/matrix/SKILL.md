@@ -5,7 +5,7 @@ version: 1.0.0
 metadata:
   hermes:
     tags: [mack, matrix, orchestration]
-    related_skills: [mack-factory, mack-ledger, handoff]
+    related_skills: [mack-dsa, mack-factory, mack-ledger, handoff]
 ---
 
 # Matrix
@@ -20,7 +20,7 @@ metadata:
 3. Para una sola tarea, `matrix_dispatch`. Para varias independientes, `matrix_fanout`, todas en una sola llamada.
 4. Revisa el `status`:
    - `ok`: integra el resultado y preséntalo.
-   - `out_of_domain`: resuélvelo tú o usa `mack-factory`.
+   - `out_of_domain`: resuélvelo tú o usa `mack-dsa`.
    - `error`: díselo a Iván tal cual. Si dice "Budget exceeded", aplica `mack-ledger`.
 
 ## Verificación

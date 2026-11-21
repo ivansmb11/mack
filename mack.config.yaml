@@ -16,6 +16,15 @@ hermes:
 
 dataDir: ~/.mack
 
+# Factory: Sandcastle coding agents in Docker, one branch per job, never pushed.
+factory:
+  imageName: sandcastle:mack
+  defaultModel: claude-opus-5-5
+  maxConcurrent: 2
+  skillPack: matt-pocock-engineering
+  # Jobs may only target git repos under these roots.
+  repoRoots: [~/repos]
+
 # USD per million tokens. Models missing here are recorded as "unpriced":
 # tokens still count toward token budgets, USD budgets ignore them.
 # Fill in from each provider's pricing page, keyed by model id:

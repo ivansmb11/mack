@@ -1,33 +1,35 @@
 ---
 name: mack-factory
-description: Diseñar y crear un Domain Specific Agent (DSA) nuevo en el Factory de Mack. Úsala cuando Iván pida un agente nuevo o cuando un dominio se repita sin DSA que lo cubra.
+description: Mandar trabajo de código al Factory, donde agentes Claude Code AFK corren en sandboxes Docker (Sandcastle) con las skills de Matt Pocock. Úsala cuando Iván pida implementar, arreglar o refactorizar algo en uno de sus repos.
 version: 1.0.0
 metadata:
   hermes:
-    tags: [mack, factory, agents]
-    related_skills: [writing-for-agents, grilling, mack-ledger]
+    tags: [mack, factory, sandcastle, code]
+    related_skills: [mack-matrix, mack-ledger, handoff]
 ---
 
-# Factory de DSAs
+# Factory (Sandcastle)
 
-## Cuándo usarla
-- Iván pide "crea un agente de X".
-- Llevas 3 o más tareas del mismo dominio sin un DSA que lo cubra. Propónlo y no lo crees hasta que Iván confirme.
+## Qué es
+Cada trabajo es un agente Claude Code que corre solo dentro de un contenedor Docker, en su propia rama `mack/<job>` del repo. Trae montadas las skills de ingeniería de Matt Pocock (`tdd`, `implement`, `code-review`…). Nunca hace push ni toca la rama donde está Iván. El merge lo decide Iván.
+
+## Cuándo usar Factory y cuándo el DSA `dev`
+- **DSA `dev` (vía Matrix):** pensar. Aterrizar una idea (`to-spec`), partirla en tickets (`to-tickets`), revisar diseño, diagnosticar.
+- **Factory:** ejecutar. Cada ticket ya claro se convierte en un trabajo.
 
 ## Procedimiento
-1. `factory_list`: revisa si ya existe un DSA o una plantilla que lo cubra. Si una plantilla sirve, usa `factory_instantiate_template`.
-2. Aterriza el dominio con la skill `grilling`, máximo 3 preguntas: qué decide el DSA, qué NO debe hacer y qué entrega.
-3. Redacta el spec:
-   - `name`: kebab-case corto (`viajes`, `salud`, `legal-mx`).
-   - `description`: una línea con el dominio y lo que entrega.
-   - `domains`: entre 8 y 20 palabras clave en español e inglés, sin acentos ni mayúsculas. Matrix enruta con ellas.
-   - `model`: `claude-sonnet-5-5` por defecto. Usa `claude-opus-5-5` solo si el dominio exige razonamiento profundo.
-   - `packs`: `matt-pocock-engineering` si el DSA toca código; `matt-pocock-thinking` casi siempre.
-   - `budget.monthlyTokens`: entre 5M y 15M salvo que Iván diga otra cosa.
-   - `soul`: escríbelo siguiendo la skill `writing-for-agents`. Incluye identidad, reglas duras, formato de salida y límites (qué no hace).
-4. Muéstrale el spec a Iván en un bloque YAML y pide confirmación.
-5. `factory_create_dsa` con el spec. Luego `matrix_health` para confirmar que el DSA quedó arriba.
+1. Asegúrate de tener la ruta absoluta del repo (bajo `~/repos`). Si no la sabes, pregúntala.
+2. Si la tarea es vaga, pásala primero por `dev` con `matrix_dispatch` y pídele un spec y tickets.
+3. Por cada ticket independiente, llama a `factory_build` con:
+   - `task`: el ticket completo y autocontenido, con sus criterios de aceptación. El agente no ve esta conversación.
+   - `workflow`: `implement-review` (default) para que un segundo pase con `code-review` revise y corrija; `implement` para cambios triviales.
+   - `setupCommand` si el repo lo necesita (`npm ci`, `pnpm i --frozen-lockfile`…).
+4. Avísale a Iván qué trabajos encolaste (id y rama). No esperes en silencio.
+5. Revisa con `factory_jobs`:
+   - `done`: reporta la rama y los commits, más el resumen del final de `output`.
+   - `incomplete`: se agotaron las iteraciones. Reporta lo que alcanzó y propón reintentar con más `maxIterations` o con un ticket más chico.
+   - `failed`: reporta el `error` tal cual.
 
 ## Errores comunes
-- Dominios demasiado genéricos ("ayuda", "tarea") roban tareas a otros DSAs.
-- El SOUL ya trae el contrato con Matrix (respuesta final, sección "Necesito", `FUERA_DE_DOMINIO`). No lo repitas.
+- Tickets que dependen entre sí, encolados en paralelo: termina uno antes de mandar el siguiente.
+- Varios trabajos tocando los mismos archivos: generan conflictos al hacer merge. Mejor hazlos en secuencia.

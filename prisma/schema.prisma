@@ -1,0 +1,94 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum AgentKind {
+  orchestrator
+  dsa
+}
+
+/// Mack (orchestrator) and every DSA; each maps 1:1 to a Hermes profile.
+model Agent {
+  name        String    @id
+  kind        AgentKind
+  description String
+  domains     Json
+  port        Int       @unique
+  provider    String
+  model       String
+  spec        Json
+  createdAt   DateTime  @default(now())
+  budget      Budget?
+}
+
+model Budget {
+  agentName     String @id
+  agent         Agent  @relation(fields: [agentName], references: [name], onDelete: Cascade)
+  monthlyTokens Int?
+  monthlyUsd    Float?
+}
+
+/// Append-only metering. Not linked to Agent so history survives a DSA's removal.
+model Usage {
+  id               Int      @id @default(autoincrement())
+  agent            String
+  model            String
+  promptTokens     Int
+  completionTokens Int
+  /// Null when the model has no entry in mack.config.yaml pricing.
+  costUsd          Float?
+  source           String
+  at               DateTime @default(now())
+
+  @@index([agent, at])
+}
+
+model Subscription {
+  id                String  @id
+  provider          String
+  plan              String
+  monthlyUsd        Float
+  renewsOn          String?
+  monthlyTokenQuota Int?
+  notes             String?
+}
+
+enum JobStatus {
+  queued
+  running
+  done
+  incomplete
+  failed
+}
+
+enum JobWorkflow {
+  implement
+  implement_review
+}
+
+model FactoryJob {
+  id         String      @id
+  repo       String
+  branch     String
+  baseBranch String
+  workflow   JobWorkflow
+  model      String
+  task       String
+  maxIterations Int
+  setupCommand  String?
+  status     JobStatus   @default(queued)
+  commits    Json        @default("[]")
+  output     String?
+  error      String?
+  createdAt  DateTime    @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([status, createdAt])
+}

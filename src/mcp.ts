@@ -1,25 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { apiClient, loadMackEnv } from "./api-client.js";
 
-/**
- * MCP bridge Hermes loads into the orchestrator profile (mcp_servers.mack).
- * It is a thin client of the control plane so all state lives in one process.
- */
-const baseUrl = process.env.MACK_URL ?? "http://127.0.0.1:7777";
-const token = process.env.MACK_TOKEN;
-if (!token) throw new Error("MACK_TOKEN is required");
-
-async function api(method: string, path: string, body?: unknown): Promise<unknown> {
-  const res = await fetch(baseUrl + path, {
-    method,
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text}`);
-  return text ? JSON.parse(text) : null;
-}
+loadMackEnv();
+const api = apiClient();
 
 const asText = (data: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] });
 
@@ -32,17 +17,17 @@ const dispatchShape = {
 };
 
 server.registerTool(
-  "factory_list",
-  { description: "Lista los agentes (orquestador + DSAs) y las plantillas disponibles en el Factory." },
+  "dsa_list",
+  { description: "Lista los agentes (Mack + DSAs) y las plantillas de DSA disponibles." },
   async () => asText({ agents: await api("GET", "/api/agents"), templates: await api("GET", "/api/templates") }),
 );
 
 server.registerTool(
-  "factory_create_dsa",
+  "dsa_create",
   {
     description:
       "Crea un Domain Specific Agent nuevo: perfil Hermes aislado con su SOUL, modelo, skill packs, API server y presupuesto. " +
-      "Usa la skill mack-factory para redactar el spec antes de llamar esto.",
+      "Usa la skill mack-dsa para redactar el spec antes de llamar esto.",
     inputSchema: {
       spec: z.object({
         name: z.string(),
@@ -60,7 +45,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "factory_instantiate_template",
+  "dsa_instantiate_template",
   {
     description: "Crea un DSA a partir de una plantilla existente, opcionalmente con otro nombre o modelo.",
     inputSchema: { template: z.string(), overrides: z.record(z.string(), z.unknown()).optional() },
@@ -125,6 +110,37 @@ server.registerTool(
     inputSchema: { agent: z.string(), monthlyTokens: z.number().optional(), monthlyUsd: z.number().optional() },
   },
   async ({ agent, ...budget }) => asText(await api("PUT", `/api/ledger/budgets/${agent}`, budget)),
+);
+
+const jobShape = {
+  repo: z.string().describe("Ruta absoluta del repo git local (bajo factory.repoRoots, p. ej. ~/repos/...)"),
+  task: z.string().describe("Ticket o spec completo y autocontenido; el agente no ve esta conversación"),
+  workflow: z.enum(["implement", "implement-review"]).optional().describe("Default implement-review"),
+  branch: z.string().optional().describe("Default mack/<job-id>"),
+  baseBranch: z.string().optional(),
+  model: z.string().optional(),
+  maxIterations: z.number().int().optional(),
+  setupCommand: z.string().optional().describe("Comando dentro del sandbox antes de empezar, p. ej. 'npm ci'"),
+};
+
+server.registerTool(
+  "factory_build",
+  {
+    description:
+      "Encola un trabajo en el Factory: un agente Claude Code AFK en un sandbox Docker (Sandcastle) implementa la tarea " +
+      "con las skills de Matt Pocock en su propia rama, sin push. Para tickets independientes, llama una vez por ticket.",
+    inputSchema: jobShape,
+  },
+  async (job) => asText(await api("POST", "/api/factory/jobs", job)),
+);
+
+server.registerTool(
+  "factory_jobs",
+  {
+    description: "Estado de los trabajos del Factory: uno por id o los más recientes.",
+    inputSchema: { id: z.string().optional() },
+  },
+  async ({ id }) => asText(await api("GET", id ? `/api/factory/jobs/${id}` : "/api/factory/jobs?limit=20")),
 );
 
 await server.connect(new StdioServerTransport());
