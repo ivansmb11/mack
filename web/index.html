@@ -60,8 +60,8 @@
       jobs.map((j) => `<tr title="${esc(j.task)}"><td>${j.id}</td><td>${esc(j.repo.split("/").pop())}</td><td>${esc(j.branch)}</td>
         <td>${j.workflow}</td><td class="${jobColor[j.status] ?? ""}">${j.status}</td><td class="num">${j.commits.length}</td></tr>`).join("");
     const up = Object.fromEntries(health.map((h) => [h.agent, h.up]));
-    $("agents").innerHTML = "<tr><th>nombre</th><th>tipo</th><th>modelo</th><th>puerto</th><th></th></tr>" +
-      agents.map((a) => `<tr><td>${esc(a.name)}</td><td>${a.kind}</td><td>${esc(a.model)}</td><td>${a.port}</td>
+    $("agents").innerHTML = "<tr><th>nombre</th><th>tipo</th><th>modelo</th><th></th></tr>" +
+      agents.map((a) => `<tr><td>${esc(a.name)}</td><td>${a.kind}</td><td>${esc(a.model)}</td>
         <td class="${up[a.name] ? "up" : "down"}">${up[a.name] ? "● up" : "○ down"}</td></tr>`).join("");
     $("agent").innerHTML = '<option value="">auto (enrutar)</option>' +
       agents.filter((a) => a.kind === "dsa").map((a) => `<option>${esc(a.name)}</option>`).join("");

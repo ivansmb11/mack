@@ -8,8 +8,9 @@ hermes:
   bin: hermes
   home: ~/.hermes
   orchestrator: mack
-  orchestratorPort: 8642
-  dsaPortRange: [8650, 8699]
+  # Hermes ≥ 0.23 runs one host gateway (default profile) whose API server fronts every
+  # profile at <apiUrl>/p/<profile>/v1, each authenticated with that profile's own key.
+  apiUrl: http://127.0.0.1:8642
   # Secrets copied from the orchestrator's .env into every new DSA.
   # Messaging-platform tokens are excluded on purpose: only Mack talks to you.
   inheritEnv: [ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, NOUS_API_KEY, GEMINI_API_KEY]

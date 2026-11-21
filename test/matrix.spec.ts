@@ -35,7 +35,7 @@ describe("Matrix", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ agent: "finanzas", status: "ok", content: "listo" });
-    expect(calls[0].url).toBe("http://127.0.0.1:8650/v1/chat/completions");
+    expect(calls[0].url).toBe("http://127.0.0.1:8642/p/finanzas/v1/chat/completions");
     const key = t.get<DsaService>(DsaService).apiKey("finanzas");
     expect((calls[0].init.headers as Record<string, string>).authorization).toBe(`Bearer ${key}`);
     expect(JSON.parse(calls[0].init.body as string)).toMatchObject({ model: "finanzas", messages: [{ role: "system", content: "MXN" }, { role: "user" }] });
@@ -58,7 +58,7 @@ describe("Matrix", () => {
   it("flags out-of-domain answers and isolates failures in fanout", async () => {
     t = await createTestApp({
       fetch: async (url) => {
-        if (String(url).includes("8651")) throw new Error("connection refused");
+        if (String(url).includes("/p/dev/")) throw new Error("connection refused");
         return chatReply("FUERA_DE_DOMINIO: no es finanzas");
       },
     });

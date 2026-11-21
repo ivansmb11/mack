@@ -14,6 +14,9 @@ import { type AgentSpec, AgentSpecSchema, loadTemplates } from "./dsa.schemas.js
 
 export type AgentRecord = Omit<Agent, "domains" | "spec"> & { domains: string[] };
 
+/** Only the key belongs in a named profile's .env; enabling a listener there would conflict with the host gateway. */
+const LISTENER_ENV_KEYS = ["API_SERVER_ENABLED", "API_SERVER_HOST", "API_SERVER_PORT"];
+
 /** Appended to every DSA's SOUL.md so it behaves as a worker of Matrix, not a standalone assistant. */
 const DSA_CONTRACT = `
 ## Contrato con Matrix
@@ -79,6 +82,11 @@ export class DsaService {
     return agent;
   }
 
+  /** OpenAI-compatible base URL of a profile behind the Hermes host gateway. */
+  baseUrl(name: string): string {
+    return `${this.config.hermes.apiUrl}/p/${name}/v1`;
+  }
+
   apiKey(name: string): string {
     const key = readEnvFile(join(this.hermes.profileDir(name), ".env")).API_SERVER_KEY;
     if (!key) throw new NotFoundException(`Agent ${name} has no API_SERVER_KEY`);
@@ -93,8 +101,6 @@ export class DsaService {
       throw new ConflictException(`"${spec.name}" is reserved for the orchestrator`);
 
     const packDirs = await Promise.all(this.packs.resolve(spec.packs).map((p) => this.packs.vendor(p)));
-    const port = kind === "orchestrator" ? this.config.hermes.orchestratorPort : await this.allocatePort();
-
     await this.hermes.createProfile(spec.name);
     const dir = this.hermes.profileDir(spec.name);
 
@@ -107,13 +113,14 @@ export class DsaService {
     });
 
     const envPath = join(dir, ".env");
-    writeEnvFile(envPath, {
-      ...(kind === "dsa" ? this.inheritedSecrets() : {}),
-      API_SERVER_ENABLED: "true",
-      API_SERVER_HOST: "127.0.0.1",
-      API_SERVER_PORT: String(port),
-      API_SERVER_KEY: readEnvFile(envPath).API_SERVER_KEY ?? randomBytes(32).toString("hex"),
-    });
+    writeEnvFile(
+      envPath,
+      {
+        ...(kind === "dsa" ? this.inheritedSecrets() : {}),
+        API_SERVER_KEY: readEnvFile(envPath).API_SERVER_KEY ?? randomBytes(32).toString("hex"),
+      },
+      { drop: LISTENER_ENV_KEYS },
+    );
 
     await this.prisma.agent.create({
       data: {
@@ -121,7 +128,6 @@ export class DsaService {
         kind,
         description: spec.description,
         domains: spec.domains,
-        port,
         provider: spec.model.provider,
         model: spec.model.default,
         spec: storableSpec(spec),
@@ -131,7 +137,7 @@ export class DsaService {
       },
     });
 
-    if (opts.start ?? true) await this.hermes.startGateway(spec.name);
+    if (!(opts.start ?? true)) await this.hermes.park(spec.name);
     return this.require(spec.name);
   }
 
@@ -144,19 +150,12 @@ export class DsaService {
 
   async start(name: string) {
     await this.require(name);
-    await this.hermes.startGateway(name);
+    await this.hermes.serve(name);
   }
 
   async stop(name: string) {
     await this.require(name);
-    await this.hermes.stopGateway(name);
-  }
-
-  private async allocatePort(): Promise<number> {
-    const used = new Set((await this.prisma.agent.findMany({ select: { port: true } })).map((a) => a.port));
-    const [from, to] = this.config.hermes.dsaPortRange;
-    for (let port = from; port <= to; port++) if (!used.has(port)) return port;
-    throw new ConflictException(`No free DSA ports in ${from}-${to}`);
+    await this.hermes.park(name);
   }
 
   private inheritedSecrets(): Record<string, string> {

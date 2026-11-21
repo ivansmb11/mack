@@ -4,12 +4,19 @@ Agente personal que corre 24/7 en el Mac mini. Está hecho sobre [Hermes Agent](
 
 | Pieza | Qué es | Código |
 |---|---|---|
-| **Mack** | Orquestador y tu único punto de contacto (Telegram, CLI, `/v1`) | Perfil Hermes `mack` (`hermes/mack.yaml`), puerto 8642 |
-| **DSAs** | Domain Specific Agents: expertos persistentes por dominio, cada uno un perfil Hermes aislado | `src/dsa/`, `templates/`, puertos 8650-8699 |
+| **Mack** | Orquestador y tu único punto de contacto (Telegram, CLI, `/v1`) | Perfil Hermes `mack` (`hermes/mack.yaml`) |
+| **DSAs** | Domain Specific Agents: expertos persistentes por dominio, cada uno un perfil Hermes aislado | `src/dsa/`, `templates/` |
 | **Matrix** | Enruta tareas a DSAs, las despacha en paralelo y aplica presupuestos | `src/matrix/` |
 | **Factory** | Agentes de código Claude Code AFK en sandboxes Docker vía Sandcastle; un trabajo = una rama | `src/factory/`, `factory/` |
 | **Ledger** | Tokens y USD por agente, presupuestos mensuales y suscripciones | `src/ledger/` |
 | **Control plane** | API NestJS + Prisma (SQLite), dashboard y proxy OpenAI-compatible | `src/`, puerto 7777 |
+
+### Gateway de Hermes (≥ 0.23)
+
+Hermes corre **un solo gateway host**, desde el perfil default (`~/.hermes`), que atiende a todos los perfiles. Su API server escucha en `127.0.0.1:8642`, y cada perfil (Mack y cada DSA) se alcanza en `http://127.0.0.1:8642/p/<perfil>/v1` con **su propia** `API_SERVER_KEY`. Los perfiles con nombre no abren puertos ni instalan gateways propios.
+
+- Un perfil nuevo empieza a atenderse solo: el host revisa `profiles/` cada 30 s o menos.
+- `stop` / `start` estacionan y reactivan un perfil (`gateway.parked`) sin tocar a los demás.
 
 ```mermaid
 flowchart LR
@@ -18,7 +25,7 @@ flowchart LR
   cp -->|/v1 proxy| mack
   mack -->|MCP: dsa_* matrix_* factory_* ledger_*| cp
   cp --> dsa[DSAs] -->|hermes profile create| profiles[Perfiles Hermes: dev · finanzas · research · …]
-  cp --> matrix[Matrix] -->|OpenAI API + key por DSA| profiles
+  cp --> matrix[Matrix] -->|/p/&lt;perfil&gt;/v1 + key por DSA| gw[Gateway host Hermes :8642] --> profiles
   cp --> factory[Factory] -->|Sandcastle createSandbox| docker[Docker sandbox<br/>Claude Code + skills Matt Pocock<br/>rama mack/job-…]
   docker -->|commits| repos[(~/repos)]
   matrix & factory --> db[(SQLite · Prisma)]
@@ -92,7 +99,7 @@ npm run mackctl -- build ~/repos/app "Agrega GET /ping que regrese pong, con tes
 |---|---|---|
 | GET/POST | `/api/agents` | listar / crear DSA (JSON o `application/yaml`) |
 | DELETE | `/api/agents/:name` | eliminar DSA |
-| POST | `/api/agents/:name/start` · `/stop` | gateway del DSA |
+| POST | `/api/agents/:name/start` · `/stop` | reactiva / estaciona el DSA en el gateway host |
 | GET | `/api/agents/health` | estado de cada API server |
 | POST | `/api/orchestrator/init` | provisiona a Mack |
 | GET / POST | `/api/templates`, `/api/templates/:t/instantiate` | plantillas de DSA |

@@ -33,6 +33,16 @@ step() { printf '\n\033[1;32m▸ %s\033[0m\n' "$*"; }
 # launchd starts jobs with a bare PATH; the control plane shells out to hermes, git and docker.
 render() { sed -e "s#__ROOT__#$ROOT#g" -e "s#__HOME__#$HOME#g" -e "s#__NODE__#$(command -v node)#g" -e "s#__PATH__#$PATH#g" \
                -e "s#__CLOUDFLARED__#$(command -v cloudflared || true)#g" -e "s#__TUNNEL_ID__#${TUNNEL_ID:-}#g" "$1"; }
+env_set() {  # env_set <file> <KEY> <value> [--keep]: --keep leaves an existing value alone
+  local file="$1" key="$2" value="$3"
+  touch "$file" && chmod 600 "$file"
+  if grep -q "^$key=" "$file"; then
+    [[ "${4:-}" == "--keep" ]] && return
+    sed -i '' "s#^$key=.*#$key=$value#" "$file"
+  else
+    echo "$key=$value" >> "$file"
+  fi
+}
 reload_agent() {
   launchctl bootout "gui/$(id -u)/$1" 2>/dev/null || true
   launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENTS/$1.plist"
@@ -69,6 +79,19 @@ step "Base de datos (Prisma migrate)"
 step "Imagen del sandbox del Factory (Sandcastle)"
 docker build -q -t sandcastle:mack --build-arg AGENT_UID="$(id -u)" --build-arg AGENT_GID="$(id -g)" -f "$ROOT/factory/Dockerfile" "$ROOT/factory"
 
+step "Gateway host de Hermes (perfil default, API server en 127.0.0.1:8642)"
+# Hermes ≥ 0.23: one host gateway serves every profile at /p/<profile>/v1; named profiles must not open listeners.
+env_set "$HOME/.hermes/.env" API_SERVER_ENABLED true
+env_set "$HOME/.hermes/.env" API_SERVER_HOST 127.0.0.1
+env_set "$HOME/.hermes/.env" API_SERVER_PORT 8642
+env_set "$HOME/.hermes/.env" API_SERVER_KEY "$(openssl rand -hex 32)" --keep
+for profile_env in "$HOME"/.hermes/profiles/*/.env; do
+  [[ -f "$profile_env" ]] && sed -i '' -E '/^API_SERVER_(ENABLED|HOST|PORT)=/d' "$profile_env"
+done
+hermes config set gateway.multiplex_profiles true
+hermes gateway install
+hermes gateway start || hermes gateway restart
+
 step "Control plane (launchd)"
 render "$ROOT/infra/launchd/dev.ivanmendoza.mack.plist.template" > "$LAUNCH_AGENTS/dev.ivanmendoza.mack.plist"
 reload_agent dev.ivanmendoza.mack
@@ -77,12 +100,15 @@ curl -fs "http://127.0.0.1:$PORT/healthz" >/dev/null || { echo "El control plane
 
 step "Perfil orquestador 'mack'"
 if [[ ! -d "$HOME/.hermes/profiles/mack" ]]; then
-  (cd "$ROOT" && node dist/cli.js init --no-start)
-  echo "Configura proveedor de modelo y Telegram para Mack (API keys, bot token):"
+  (cd "$ROOT" && node dist/cli.js init)
+  echo "Configura el modelo de Mack:"
   hermes -p mack setup
 fi
-hermes -p mack gateway install
-hermes -p mack gateway start
+if ! grep -q '^TELEGRAM_BOT_TOKEN=' "$HOME/.hermes/profiles/mack/.env" 2>/dev/null; then
+  read -rp "¿Conectar Telegram a Mack ahora? [Y/n] " tg
+  # Under the multiplexer this only stores the bot credentials; the host gateway picks them up.
+  [[ "${tg:-y}" =~ ^[Yy]$ ]] && hermes -p mack setup gateway
+fi
 
 step "Acceso remoto"
 echo "  1) Tailscale (privado, recomendado): https://<este-mac>.<tu-tailnet>.ts.net"

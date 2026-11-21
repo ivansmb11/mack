@@ -32,7 +32,7 @@ describe("HTTP surface", () => {
     const res = await t.api.post("/v1/chat/completions", { model: "mack", messages: [{ role: "user", content: "hola" }] });
 
     expect(res.status).toBe(200);
-    expect(seen!.url).toBe("http://127.0.0.1:8642/v1/chat/completions");
+    expect(seen!.url).toBe("http://127.0.0.1:8642/p/mack/v1/chat/completions");
     expect(seen!.auth).toBe(`Bearer ${t.get<DsaService>(DsaService).apiKey("mack")}`);
     expect(JSON.parse(seen!.body).messages[0].content).toBe("hola");
     expect((await t.get<LedgerService>(LedgerService).monthSpend("mack")).tokens).toBe(10);

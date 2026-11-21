@@ -16,7 +16,7 @@ export interface DispatchResult {
 const OUT_OF_DOMAIN = "FUERA_DE_DOMINIO";
 const DISPATCH_TIMEOUT_MS = 15 * 60_000;
 
-/** Matrix: routes tasks to DSAs over their OpenAI-compatible Hermes API servers, enforcing budgets. */
+/** Matrix: routes tasks to DSAs through the Hermes host gateway (/p/<profile>/v1), enforcing budgets. */
 @Injectable()
 export class MatrixService {
   constructor(
@@ -41,7 +41,7 @@ export class MatrixService {
       ...(req.context ? [{ role: "system", content: req.context }] : []),
       { role: "user", content: req.task },
     ];
-    const res = await this.fetch(`http://127.0.0.1:${agent.port}/v1/chat/completions`, {
+    const res = await this.fetch(`${this.dsas.baseUrl(agent.name)}/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${this.dsas.apiKey(agent.name)}` },
       body: JSON.stringify({ model: agent.name, messages, stream: false }),
@@ -69,17 +69,17 @@ export class MatrixService {
     );
   }
 
-  async health(): Promise<{ agent: string; port: number; up: boolean }[]> {
+  async health(): Promise<{ agent: string; up: boolean }[]> {
     const agents = await this.dsas.list();
     return Promise.all(
       agents.map(async (a) => {
-        const up = await this.fetch(`http://127.0.0.1:${a.port}/v1/models`, {
+        const up = await this.fetch(`${this.dsas.baseUrl(a.name)}/models`, {
           headers: { authorization: `Bearer ${this.dsas.apiKey(a.name)}` },
           signal: AbortSignal.timeout(3_000),
         })
           .then((r) => r.ok)
           .catch(() => false);
-        return { agent: a.name, port: a.port, up };
+        return { agent: a.name, up };
       }),
     );
   }

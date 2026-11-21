@@ -19,7 +19,6 @@ model Agent {
   kind        AgentKind
   description String
   domains     Json
-  port        Int       @unique
   provider    String
   model       String
   spec        Json

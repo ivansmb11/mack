@@ -6,39 +6,45 @@ import { parse, stringify } from "yaml";
 
 const run = promisify(execFile);
 
-/** Boundary to the Hermes CLI and its on-disk profile layout (~/.hermes/profiles/<name>/). */
+/**
+ * Boundary to the Hermes CLI and its on-disk profile layout (~/.hermes/profiles/<name>/).
+ * Hermes ≥ 0.23 serves every unparked profile from the single host gateway (rescan ≤ 30s),
+ * so "serving" a profile means unparking it, never starting a process of its own.
+ */
 export interface Hermes {
   profileDir(name: string): string;
   createProfile(name: string): Promise<void>;
   deleteProfile(name: string): Promise<void>;
-  startGateway(name: string): Promise<void>;
-  stopGateway(name: string): Promise<void>;
+  serve(name: string): Promise<void>;
+  park(name: string): Promise<void>;
 }
+
+/** Documented provisioning hook: a profile created with this marker stays offline until `gateway start`. */
+const PARKED_MARKER = "gateway.parked";
 
 export function cliHermes(bin: string, home: string): Hermes {
   const hermes = (...args: string[]) => run(bin, args, { timeout: 120_000 });
+  const profileDir = (name: string) => join(home, "profiles", name);
   return {
-    profileDir: (name) => join(home, "profiles", name),
+    profileDir,
     createProfile: async (name) => void (await hermes("profile", "create", name)),
     deleteProfile: async (name) => void (await hermes("profile", "delete", name, "--yes")),
-    startGateway: async (name) => {
-      await hermes("-p", name, "gateway", "install");
-      await hermes("-p", name, "gateway", "start");
-    },
-    stopGateway: async (name) => void (await hermes("-p", name, "gateway", "stop")),
+    serve: async (name) => void (await hermes("-p", name, "gateway", "start")),
+    park: async (name) => writeFileSync(join(profileDir(name), PARKED_MARKER), ""),
   };
 }
 
-/** In-process stand-in for tests and `--dry-run`: lays out the profile dir without touching Hermes. */
-export function fakeHermes(home: string): Hermes & { gateways: Set<string> } {
-  const gateways = new Set<string>();
+/** In-process stand-in for tests and MACK_DRY_RUN: lays out profile dirs and models parking. */
+export function fakeHermes(home: string): Hermes & { served(name: string): boolean } {
+  const profileDir = (name: string) => join(home, "profiles", name);
+  const marker = (name: string) => join(profileDir(name), PARKED_MARKER);
   return {
-    gateways,
-    profileDir: (name) => join(home, "profiles", name),
-    createProfile: async (name) => void mkdirSync(join(home, "profiles", name), { recursive: true }),
-    deleteProfile: async (name) => rmSync(join(home, "profiles", name), { recursive: true, force: true }),
-    startGateway: async (name) => void gateways.add(name),
-    stopGateway: async (name) => void gateways.delete(name),
+    profileDir,
+    served: (name) => existsSync(profileDir(name)) && !existsSync(marker(name)),
+    createProfile: async (name) => void mkdirSync(profileDir(name), { recursive: true }),
+    deleteProfile: async (name) => rmSync(profileDir(name), { recursive: true, force: true }),
+    serve: async (name) => rmSync(marker(name), { force: true }),
+    park: async (name) => writeFileSync(marker(name), ""),
   };
 }
 
@@ -55,8 +61,9 @@ export function readEnvFile(path: string): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
-export function writeEnvFile(path: string, values: Record<string, string>): void {
-  const merged = { ...readEnvFile(path), ...values };
+export function writeEnvFile(path: string, values: Record<string, string>, opts: { drop?: string[] } = {}): void {
+  const current = Object.entries(readEnvFile(path)).filter(([k]) => !opts.drop?.includes(k));
+  const merged = { ...Object.fromEntries(current), ...values };
   writeFileSync(path, Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n");
   chmodSync(path, 0o600);
 }

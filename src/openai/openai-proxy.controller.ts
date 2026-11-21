@@ -23,7 +23,7 @@ export class OpenAiProxyController {
   async proxy(@Req() req: Request, @Res() res: Response) {
     const orchestrator = this.config.hermes.orchestrator;
     await this.ledger.assertWithinBudget(orchestrator);
-    const upstream = await this.fetch(`http://127.0.0.1:${this.config.hermes.orchestratorPort}${req.originalUrl}`, {
+    const upstream = await this.fetch(`${this.dsas.baseUrl(orchestrator)}${req.originalUrl.replace(/^\/v1/, "")}`, {
       method: req.method,
       headers: { "content-type": "application/json", authorization: `Bearer ${this.dsas.apiKey(orchestrator)}` },
       body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body),
