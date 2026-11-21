@@ -43,9 +43,17 @@ env_set() {  # env_set <file> <KEY> <value> [--keep]: --keep leaves an existing 
     echo "$key=$value" >> "$file"
   fi
 }
+# bootout returns before launchd finishes unloading; bootstrapping too early fails with "5: Input/output error".
 reload_agent() {
-  launchctl bootout "gui/$(id -u)/$1" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENTS/$1.plist"
+  local domain="gui/$(id -u)"
+  launchctl bootout "$domain/$1" 2>/dev/null || true
+  for _ in $(seq 1 20); do launchctl print "$domain/$1" >/dev/null 2>&1 || break; sleep 0.5; done
+  for attempt in 1 2 3; do
+    launchctl bootstrap "$domain" "$LAUNCH_AGENTS/$1.plist" && return
+    sleep "$attempt"
+  done
+  echo "launchd no pudo cargar $1; revisa: launchctl print $domain/$1" >&2
+  return 1
 }
 
 step "Hermes Agent"
