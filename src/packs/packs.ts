@@ -30,11 +30,13 @@ export function packDir(packsHome: string, pack: SkillPack): string {
   return join(packsHome, pack.name);
 }
 
-/** Idempotent: re-vendors only when the pinned commit changed. */
+const vendorStamp = (pack: SkillPack) => [pack.commit, ...pack.skills].join("\n");
+
+/** Idempotent: re-vendors only when the pinned commit or the skill list changed. */
 export async function vendorPack(packsHome: string, pack: SkillPack): Promise<string> {
   const target = packDir(packsHome, pack);
   const stamp = join(target, ".commit");
-  if (existsSync(stamp) && readFileSync(stamp, "utf8").trim() === pack.commit) return target;
+  if (existsSync(stamp) && readFileSync(stamp, "utf8").trim() === vendorStamp(pack)) return target;
 
   const checkout = mkdtempSync(join(tmpdir(), `mack-pack-${pack.name}-`));
   try {
@@ -49,7 +51,7 @@ export async function vendorPack(packsHome: string, pack: SkillPack): Promise<st
       if (!existsSync(join(source, "SKILL.md"))) throw new Error(`${pack.name}: ${skillPath} has no SKILL.md at ${pack.commit}`);
       cpSync(source, join(target, basename(skillPath)), { recursive: true });
     }
-    writeFileSync(stamp, pack.commit + "\n");
+    writeFileSync(stamp, vendorStamp(pack) + "\n");
     return target;
   } finally {
     rmSync(checkout, { recursive: true, force: true });

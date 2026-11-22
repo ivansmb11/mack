@@ -8,7 +8,8 @@ export interface JobRun {
   maxIterations: number;
   setupCommand?: string;
   imageName: string;
-  skillsDir: string;
+  /** Vendored pack directories; each skill folder inside them is mounted at ~/.claude/skills/<skill>. */
+  skillsDirs: string[];
   /** Absolute paths; Sandcastle fills their {{KEY}} placeholders from promptArgs (inline prompts are not templated). */
   promptFiles: { implement: string; review: string | null };
   promptArgs: Record<string, string>;

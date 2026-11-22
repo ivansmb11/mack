@@ -13,6 +13,6 @@ USER ${AGENT_UID}:${AGENT_GID}
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/agent/.local/bin:$PATH"
 
-# Mack mounts the matt-pocock-engineering skill pack read-only at /home/agent/.claude/skills.
+# Mack mounts every skill of factory.skillPacks read-only under /home/agent/.claude/skills.
 WORKDIR /home/agent
 ENTRYPOINT ["sleep", "infinity"]

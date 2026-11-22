@@ -22,7 +22,8 @@ factory:
   imageName: sandcastle:mack
   defaultModel: claude-opus-5-5
   maxConcurrent: 2
-  skillPack: matt-pocock-engineering
+  # Mounted read-only at ~/.claude/skills in every sandbox.
+  skillPacks: [matt-pocock-engineering, matt-pocock-thinking]
   # Jobs may only target git repos under these roots.
   repoRoots: [~/repos]
 

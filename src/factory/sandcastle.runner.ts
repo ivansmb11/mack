@@ -1,8 +1,20 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { claudeCode, createSandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import type { AgentRunner } from "./agent-runner.js";
 
 const COMPLETE = "<promise>COMPLETE</promise>";
+const SANDBOX_SKILLS = "/home/agent/.claude/skills";
+
+/** One read-only mount per skill, so several packs land side by side in the sandbox's skills directory. */
+export function skillMounts(packDirs: string[]) {
+  return packDirs.flatMap((dir) =>
+    readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => ({ hostPath: join(dir, entry.name), sandboxPath: `${SANDBOX_SKILLS}/${entry.name}`, readonly: true })),
+  );
+}
 
 /**
  * Runs a Factory job as Sandcastle's sequential-reviewer pattern: implement, then (optionally)
@@ -16,7 +28,7 @@ export function sandcastleRunner(agentEnv: Record<string, string>): AgentRunner 
       cwd: job.repo,
       sandbox: docker({
         imageName: job.imageName,
-        mounts: [{ hostPath: job.skillsDir, sandboxPath: "/home/agent/.claude/skills", readonly: true }],
+        mounts: skillMounts(job.skillsDirs),
       }),
       ...(job.setupCommand ? { hooks: { sandbox: { onSandboxReady: [{ command: job.setupCommand }] } } } : {}),
     });

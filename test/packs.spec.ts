@@ -29,9 +29,31 @@ test("vendors only the pinned skills and skips work when already at that commit"
   expect(existsSync(join(dir, "tdd", "SKILL.md"))).toBeTruthy();
   expect(existsSync(join(dir, "grilling", "SKILL.md"))).toBeTruthy();
   expect(!existsSync(join(dir, "unused"))).toBe(true);
-  expect(readFileSync(join(dir, ".commit"), "utf8").trim()).toBe(commit);
+  expect(readFileSync(join(dir, ".commit"), "utf8").split("\n")[0]).toBe(commit);
 
   await vendorPack(home, { ...pack, repo: "/does/not/exist" });
+});
+
+test("re-vendors when a skill is added to the pack at the same commit", async () => {
+  const { repo, commit } = fixtureRepo();
+  const home = mkdtempSync(join(tmpdir(), "mack-packs-"));
+  const pack = { name: "mp", description: "d", repo, commit, skills: ["skills/tdd"] };
+  await vendorPack(home, pack);
+
+  const dir = await vendorPack(home, { ...pack, skills: ["skills/tdd", "skills/grilling"] });
+  expect(existsSync(join(dir, "grilling", "SKILL.md"))).toBe(true);
+});
+
+test("Factory sandboxes get every Matt Pocock skill, setup included", async () => {
+  const { skillMounts } = await import("../src/factory/sandcastle.runner.js");
+  const { repo, commit } = fixtureRepo();
+  const home = mkdtempSync(join(tmpdir(), "mack-packs-"));
+  const a = await vendorPack(home, { name: "a", description: "d", repo, commit, skills: ["skills/tdd"] });
+  const b = await vendorPack(home, { name: "b", description: "d", repo, commit, skills: ["skills/grilling"] });
+  expect(skillMounts([a, b]).map((m) => m.sandboxPath)).toEqual(["/home/agent/.claude/skills/tdd", "/home/agent/.claude/skills/grilling"]);
+
+  const engineering = loadPacks(join(PROJECT_ROOT, "packs")).get("matt-pocock-engineering")!;
+  expect(engineering.skills).toContain("skills/engineering/setup-matt-pocock-skills");
 });
 
 test("fails loudly when a listed skill is missing upstream", async () => {

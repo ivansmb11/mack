@@ -37,8 +37,9 @@ describe("Factory", () => {
 
     const job = (await t.api.get(`/api/factory/jobs/${res.body.id}`)).body;
     expect(job).toMatchObject({ status: "done", commits: ["abc123"] });
-    expect(runs[0]).toMatchObject({ repo, imageName: "sandcastle:test", skillsDir: join(t.root, "packs", "demo"), maxIterations: 5 });
+    expect(runs[0]).toMatchObject({ repo, imageName: "sandcastle:test", skillsDirs: [join(t.root, "packs", "demo")], maxIterations: 5 });
     expect(readFileSync(runs[0].promptFiles.implement, "utf8")).toMatch(/skill `tdd`/);
+    expect(readFileSync(runs[0].promptFiles.implement, "utf8")).toMatch(/setup-matt-pocock-skills/);
     expect(readFileSync(runs[0].promptFiles.review!, "utf8")).toMatch(/skill `code-review`/);
     expect(runs[0].promptArgs).toEqual({ TASK: "Agrega un endpoint /ping con tests", BRANCH: job.branch, BASE: "main" });
     expect(readFileSync(join(repo, ".git/info/exclude"), "utf8")).toContain(".sandcastle/\n");

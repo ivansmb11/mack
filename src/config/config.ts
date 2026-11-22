@@ -25,7 +25,8 @@ const ConfigSchema = z.object({
     imageName: z.string(),
     defaultModel: z.string(),
     maxConcurrent: z.number().int().min(1),
-    skillPack: z.string(),
+    /** Every pack is mounted into each sandbox; skill names must not collide across packs. */
+    skillPacks: z.array(z.string()).min(1),
     repoRoots: z.array(z.string().transform(expandHome)).min(1),
   }),
   pricing: z.record(z.string(), PriceSchema).nullish().transform((p) => p ?? {}),

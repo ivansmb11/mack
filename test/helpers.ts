@@ -57,7 +57,7 @@ export async function createTestApp(opts: TestAppOptions = {}) {
       imageName: "sandcastle:test",
       defaultModel: "claude-test",
       maxConcurrent: opts.maxConcurrent ?? 2,
-      skillPack: "demo",
+      skillPacks: ["demo"],
       repoRoots: [repos],
     },
     pricing: opts.pricing ?? {},

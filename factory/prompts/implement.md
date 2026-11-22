@@ -4,18 +4,24 @@
 
 # Cómo trabajar
 
-Trabajas solo, sin humano disponible, en la rama `{{BRANCH}}` de este repo. Tienes instaladas las skills de ingeniería de Matt Pocock: úsalas, no improvises un método propio.
+Trabajas solo, sin humano disponible, en la rama `{{BRANCH}}` de este repo. En `~/.claude/skills` tienes cargadas las skills de Matt Pocock (ingeniería y pensamiento). Úsalas en lugar de improvisar tu propio método.
 
-1. Lee primero `CLAUDE.md` / `AGENTS.md` / `CONTEXT.md` si existen, y el `GLOSSARY.md` si hay uno (skill `domain-modeling`).
-2. Si la tarea es un spec o un ticket, sigue la skill `implement`. En cualquier caso, implementa con la skill `tdd`: un test que falla → el mínimo código que lo pasa → refactor.
-3. Si encuentras un bug que no entiendes, usa `diagnosing-bugs`: primero reprodúcelo.
-4. Diseña con `codebase-design`: módulos profundos, interfaces pequeñas.
-5. Corre la suite de tests y el typecheck del proyecto antes de cada commit. No hagas commit en rojo.
-6. Haz commits pequeños con mensajes claros. No hagas push, no cambies de rama ni toques otras ramas.
+0. **Configura el repo para las skills.** Si no existe `docs/agents/issue-tracker.md`, abre `~/.claude/skills/setup-matt-pocock-skills/SKILL.md` y síguelo de principio a fin. No hay nadie a quien preguntarle, así que en cada pregunta toma la opción recomendada:
+   - Issue tracker: GitHub si `git remote -v` apunta a github.com, GitLab si apunta a GitLab, y markdown local en `.scratch/` en cualquier otro caso.
+   - Etiquetas de triage: las de default.
+   - Docs de dominio: single-context, salvo que el repo sea un monorepo.
+   - Archivo de agente: edita `CLAUDE.md` si existe; si no, `AGENTS.md`; si no existe ninguno, crea `CLAUDE.md`.
+   - No crees etiquetas remotas ni hagas push. Haz commit de esa configuración en un commit propio (`chore: configure Matt Pocock skills`).
+1. Lee `CLAUDE.md`, `AGENTS.md`, `docs/agents/*.md` y `GLOSSARY.md` si existen (skill `domain-modeling`).
+2. Si la tarea es un spec o un ticket, sigue la skill `implement`. En todos los casos implementa con la skill `tdd`: escribe un test que falle, luego el mínimo código que lo pase, luego refactoriza.
+3. Si encuentras un bug que no entiendes, usa `diagnosing-bugs` y reprodúcelo antes de intentar arreglarlo.
+4. Diseña con `codebase-design`: módulos profundos con interfaces pequeñas.
+5. Corre la suite de tests y el typecheck del proyecto antes de cada commit. No hagas commit si algo falla.
+6. Haz commits pequeños con mensajes claros. No hagas push, no cambies de rama y no toques otras ramas.
 
 # Cuándo terminar
 
-Cuando la tarea esté completa y los tests y el typecheck pasen, escribe un resumen de 3 a 5 líneas de lo que hiciste y luego exactamente:
+Cuando la tarea esté completa y pasen los tests y el typecheck, escribe un resumen de 3 a 5 líneas de lo que hiciste y luego exactamente:
 
 <promise>COMPLETE</promise>
 

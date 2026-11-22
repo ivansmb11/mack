@@ -152,7 +152,7 @@ export class FactoryService implements OnApplicationBootstrap {
         maxIterations: job.maxIterations,
         setupCommand: job.setupCommand ?? undefined,
         imageName: this.factoryConfig.imageName,
-        skillsDir: await this.packs.vendor(this.packs.resolve([this.factoryConfig.skillPack])[0]),
+        skillsDirs: await Promise.all(this.packs.resolve(this.factoryConfig.skillPacks).map((p) => this.packs.vendor(p))),
         promptFiles: { implement: promptFile("implement"), review: job.workflow === "implement_review" ? promptFile("review") : null },
         promptArgs: { TASK: job.task, BRANCH: job.branch, BASE: job.baseBranch },
       });

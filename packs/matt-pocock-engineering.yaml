@@ -3,6 +3,7 @@ description: Núcleo de la inteligencia de desarrollo. Spec → tickets → TDD 
 repo: https://github.com/mattpocock/skills.git
 commit: 5863806dd4e15c63174bee4e7515a4256792ecfa
 skills:
+  - skills/engineering/setup-matt-pocock-skills
   - skills/engineering/tdd
   - skills/engineering/diagnosing-bugs
   - skills/engineering/codebase-design
