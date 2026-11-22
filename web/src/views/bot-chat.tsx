@@ -101,7 +101,7 @@ function Bubble({ role, children, error }: { role: "user" | "assistant"; childre
     <div
       className={cn(
         "w-fit max-w-[min(68ch,85%)] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed",
-        role === "user" ? "bg-signal/90 ml-auto rounded-br-md text-white" : "bg-secondary rounded-bl-md",
+        role === "user" ? "bg-primary ml-auto rounded-br-md text-white" : "bg-secondary rounded-bl-md",
         error && "text-destructive",
       )}
     >
@@ -152,12 +152,12 @@ function LiveTools({ tools }: { tools: ToolRun[] }) {
           key={i}
           className={cn(
             "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs",
-            t.state === "running" ? "border-signal/50" : "border-input text-muted-foreground",
+            t.state === "running" ? "border-primary/50" : "border-input text-muted-foreground",
             t.state === "failed" && "border-destructive/40 text-destructive",
           )}
           title={t.preview}
         >
-          {t.state === "running" ? <Loader2 className="text-signal size-3 animate-spin" /> : <Wrench className="size-3" />}
+          {t.state === "running" ? <Loader2 className="text-primary size-3 animate-spin" /> : <Wrench className="size-3" />}
           <span className="truncate">{t.name}</span>
         </span>
       ))}
@@ -317,7 +317,7 @@ export function BotChatView({ name }: { name: string }) {
         onDrop={onDrop}
       >
         {dragging && (
-          <div className="bg-background/80 border-signal pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-2xl border-2 border-dashed">
+          <div className="bg-background/80 border-primary pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-2xl border-2 border-dashed">
             <p className="text-lg">Suelta para adjuntarlo a {name}</p>
           </div>
         )}

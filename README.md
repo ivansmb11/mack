@@ -35,12 +35,12 @@ flowchart LR
 
 Las skills de [mattpocock/skills](https://github.com/mattpocock/skills) se distribuyen como **skill packs** (`packs/*.yaml`). Cada pack es un subconjunto curado del repo, **fijado a un commit** y copiado a `~/.mack/packs/<pack>/`.
 
-- `matt-pocock-engineering`: 19 skills, entre ellas `tdd`, `implement`, `to-spec`, `to-tickets`, `code-review`, `diagnosing-bugs` y `codebase-design`.
+- `matt-pocock-engineering`: 20 skills, entre ellas `setup-matt-pocock-skills`, `tdd`, `implement`, `to-spec`, `to-tickets`, `code-review`, `diagnosing-bugs` y `codebase-design`.
 - `matt-pocock-thinking`: `grilling`, `handoff`, `teach` y `writing-for-agents`. Mack usa este último para redactar el SOUL de cada DSA nuevo.
 
 Las skills se usan en dos lugares:
 1. **DSA `dev`** (perfil Hermes con ambos packs). Es el que **piensa**: aterriza la idea (`to-spec`), la parte en tickets (`to-tickets`), revisa el diseño y diagnostica.
-2. **Factory**. Es el que **ejecuta**: el pack de ingeniería se monta en solo lectura en `~/.claude/skills` dentro de cada sandbox. Los prompts de `factory/prompts/` obligan a usar `tdd` al implementar y `code-review` en el pase de revisión.
+2. **Factory**. Es el que **ejecuta**: los packs de `factory.skillPacks` (ingeniería y pensamiento) se montan en solo lectura en `~/.claude/skills` dentro de cada sandbox, una carpeta por skill. Antes de implementar, si el repo no tiene `docs/agents/issue-tracker.md`, el agente lo configura con `setup-matt-pocock-skills` usando las respuestas recomendadas y lo guarda en un commit propio. Los prompts de `factory/prompts/` obligan a usar `tdd` al implementar y `code-review` en el pase de revisión.
 
 ## Factory (Sandcastle)
 
@@ -122,6 +122,10 @@ npm run mackctl -- build ~/repos/app "Agrega GET /ping que regrese pong, con tes
   - Las conversaciones directas con Mack por Telegram o CLI (se pueden sincronizar desde `GET /api/analytics/usage` del dashboard de Hermes).
   - El consumo del Factory: Sandcastle reporta el uso por iteración como una foto de la última llamada, no como un acumulado. Con `CLAUDE_CODE_OAUTH_TOKEN` ese gasto entra en tu suscripción Max, que sí aparece en el Ledger.
 - Sandcastle falla con repos dentro de `/var/folders` (temporales de macOS, por el symlink a `/private`). Los repos en `~/repos` funcionan bien.
+
+## Dashboard
+
+El sistema de diseño del dashboard (`web/`) está fijado en [`design.md`](design.md): cockpit claro con acento cobalto, Geist, modo oscuro opcional y una barra superior con el estado en vivo. Cualquier pantalla nueva debe seguirlo; si necesita algo distinto, primero se cambia `design.md`.
 
 ## Desarrollo
 

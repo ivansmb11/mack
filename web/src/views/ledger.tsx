@@ -160,7 +160,7 @@ export function LedgerView() {
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
                 <p className="text-muted-foreground text-sm first-letter:uppercase">{month}</p>
-                <p className="text-glow text-5xl font-semibold tracking-tight tabular-nums">{formatUsd(ledger.data.totalUsd)}</p>
+                <p className="text-5xl font-semibold tracking-tight tabular-nums">{formatUsd(ledger.data.totalUsd)}</p>
               </div>
               <dl className="grid grid-cols-3 gap-x-8 gap-y-1 text-sm">
                 <dt className="text-muted-foreground">Suscripciones</dt>

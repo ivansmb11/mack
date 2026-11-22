@@ -62,12 +62,8 @@ export function BotAvatar({
 
   if (name === "mack")
     return (
-      <span
-        className={cn("bg-background grid shrink-0 place-items-center rounded-full ring-1 ring-[color-mix(in_oklab,var(--signal)_45%,transparent)]", className)}
-        style={{ width: size, height: size }}
-        aria-hidden
-      >
-        <MackMark style={{ width: size * 0.62, height: size * 0.62 }} />
+      <span className={cn("block shrink-0 overflow-hidden rounded-full", className)} style={{ width: size, height: size }} aria-hidden>
+        <MackMark className="size-full" />
       </span>
     );
 

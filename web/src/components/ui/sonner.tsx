@@ -1,8 +1,9 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useTheme } from "@/hooks/use-theme";
 
 const Toaster = (props: ToasterProps) => (
   <Sonner
-    theme="light"
+    theme={useTheme()[0]}
     className="toaster group"
     style={
       {

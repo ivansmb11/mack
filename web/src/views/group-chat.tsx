@@ -232,7 +232,7 @@ export function GroupChatView({ id }: { id: string }) {
                   <div
                     className={cn(
                       "w-fit max-w-[min(68ch,85%)] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed",
-                      mine ? "bg-signal/90 rounded-br-md whitespace-pre-wrap text-white" : "bg-secondary rounded-tl-md",
+                      mine ? "bg-primary rounded-br-md whitespace-pre-wrap text-white" : "bg-secondary rounded-tl-md",
                       m.error && "text-destructive",
                     )}
                   >

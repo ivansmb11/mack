@@ -99,7 +99,7 @@ export function MatrixView() {
                   <div className="bg-background rounded-md border p-3 text-sm">
                     {route.data.agent ? (
                       <p>
-                        Matrix se la daría a <span className="text-signal font-medium">{route.data.agent}</span>
+                        Matrix se la daría a <span className="text-primary font-medium">{route.data.agent}</span>
                         {route.data.candidates.length > 1 &&
                           `. También coincide con ${route.data.candidates
                             .slice(1)
