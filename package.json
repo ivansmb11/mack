@@ -11,8 +11,8 @@
     "mackctl": "dist/cli.js"
   },
   "scripts": {
-    "postinstall": "prisma generate",
-    "build": "prisma generate && nest build",
+    "postinstall": "prisma generate && npm --prefix web ci",
+    "build": "prisma generate && nest build && npm --prefix web run build",
     "start": "prisma migrate deploy && node dist/main.js",
     "dev": "nest start --watch",
     "mackctl": "node dist/cli.js",

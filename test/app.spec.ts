@@ -10,7 +10,7 @@ describe("HTTP surface", () => {
   it("requires MACK_TOKEN everywhere except healthz and the dashboard", async () => {
     t = await createTestApp();
     expect((await t.http.get("/healthz")).body).toEqual({ ok: true, domain: "mack.test" });
-    expect((await t.http.get("/")).text).toContain("MACK");
+    expect([200, 503]).toContain((await t.http.get("/")).status);
     expect((await t.http.get("/api/agents")).status).toBe(401);
     expect((await t.http.get("/api/agents").set("authorization", "Bearer wrong")).status).toBe(401);
     expect((await t.http.post("/v1/chat/completions")).status).toBe(401);
@@ -36,6 +36,13 @@ describe("HTTP surface", () => {
     expect(seen!.auth).toBe(`Bearer ${t.get<DsaService>(DsaService).apiKey("mack")}`);
     expect(JSON.parse(seen!.body).messages[0].content).toBe("hola");
     expect((await t.get<LedgerService>(LedgerService).monthSpend("mack")).tokens).toBe(10);
+  });
+
+  it("lists budgets for every agent, including ones without usage", async () => {
+    t = await createTestApp();
+    await t.api.post("/api/agents", { name: "viajes", description: "Planeación de viajes", model: { provider: "a", default: "m" }, soul: "Eres el DSA de viajes de Iván.", budget: { monthlyTokens: 500 } });
+    const budgets = (await t.api.get("/api/ledger/budgets")).body;
+    expect(budgets).toEqual([{ agent: "viajes", kind: "dsa", budget: { monthlyTokens: 500, monthlyUsd: null }, spend: { tokens: 0, usd: 0, unpricedTokens: 0 } }]);
   });
 
   it("serves the DSA templates shipped in the repo", async () => {

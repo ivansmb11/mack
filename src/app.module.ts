@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { MACK_TOKEN, TokenGuard } from "./auth/token.guard.js";
 import { requireEnv } from "./config/config.js";
 import { ConfigModule } from "./config/config.module.js";
+import { BotsModule } from "./bots/bots.module.js";
 import { DsaModule } from "./dsa/dsa.module.js";
 import { FactoryModule } from "./factory/factory.module.js";
 import { HermesModule } from "./hermes/hermes.module.js";
@@ -32,6 +33,7 @@ class AuthModule {}
     FetchModule,
     LedgerModule,
     DsaModule,
+    BotsModule,
     MatrixModule,
     FactoryModule,
     OpenAiModule,

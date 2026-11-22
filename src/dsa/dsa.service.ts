@@ -10,19 +10,22 @@ import { HERMES, type Hermes, patchConfigYaml, readEnvFile, writeEnvFile } from 
 import { LedgerService } from "../ledger/ledger.service.js";
 import { PacksService } from "../packs/packs.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { type AgentSpec, AgentSpecSchema, loadTemplates } from "./dsa.schemas.js";
+import { recommendLook } from "./avatars.js";
+import { type AgentPatch, type AgentSpec, AgentSpecSchema, loadTemplates } from "./dsa.schemas.js";
 
 export type AgentRecord = Omit<Agent, "domains" | "spec"> & { domains: string[] };
 
 /** Only the key belongs in a named profile's .env; enabling a listener there would conflict with the host gateway. */
 const LISTENER_ENV_KEYS = ["API_SERVER_ENABLED", "API_SERVER_HOST", "API_SERVER_PORT"];
 
-/** Appended to every DSA's SOUL.md so it behaves as a worker of Matrix, not a standalone assistant. */
-const DSA_CONTRACT = `
-## Contrato con Matrix
-- Eres un Domain Specific Agent (DSA) dentro del sistema Mack. Recibes tareas de Matrix, el orquestador; no hablas directo con el usuario.
-- Responde con el resultado final, listo para que Mack lo presente. Si te falta información crítica, dilo explícitamente en una sección "Necesito" en vez de inventar.
-- Si la tarea cae fuera de tu dominio, responde "FUERA_DE_DOMINIO: <motivo>" para que Matrix la reasigne.
+/** Appended to every DSA's SOUL.md: a teammate Iván talks to directly, in groups, or through Matrix. */
+export const DSA_CONTRACT = `
+## Cómo trabajas en Mack
+- Eres un bot del equipo de Iván dentro de Mack. Tienes un solo chat continuo con Iván: recuerda lo que ya hablaron y retoma donde se quedaron.
+- Trabajas hasta terminar y regresas con el resultado, no con un plan. Pregunta solo cuando te falte información, criterio o autorización.
+- Antes de algo irreversible o que cueste dinero (enviar, publicar, pagar, borrar), pide confirmación.
+- En un grupo, contesta solo tu parte. Para pasarle trabajo a otro bot, menciónalo con @nombre.
+- Cuando Matrix te manda una tarea que no es de tu dominio, responde "FUERA_DE_DOMINIO: <motivo>" para que la reasigne.
 - Idioma por defecto: español.
 `;
 
@@ -30,7 +33,13 @@ const DSA_CONTRACT = `
 const storableSpec = (spec: AgentSpec): Prisma.InputJsonObject =>
   JSON.parse(JSON.stringify({ ...spec, mcpServers: Object.keys(spec.mcpServers) }));
 
-const toRecord = ({ spec: _spec, domains, ...agent }: Agent): AgentRecord => ({ ...agent, domains: domains as string[] });
+/** Bots created before looks existed (or with a blank one) wear what would be recommended for them today. */
+function toRecord({ spec: _spec, domains, ...agent }: Agent): AgentRecord {
+  const look = agent.avatar && agent.color ? null : recommendLook({ ...agent, domains: domains as string[] });
+  return { ...agent, domains: domains as string[], avatar: agent.avatar || look!.avatar, color: agent.color || look!.color };
+}
+
+const soulFile = (kind: AgentKind, soul: string) => (kind === "dsa" ? soul.trimEnd() + "\n" + DSA_CONTRACT : soul);
 
 /** Creates DSAs (and Mack itself) as isolated Hermes profiles, each with its own API server and key. */
 @Injectable()
@@ -67,8 +76,13 @@ export class DsaService {
   }
 
   async list(): Promise<AgentRecord[]> {
-    const agents = await this.prisma.agent.findMany({ orderBy: [{ kind: "asc" }, { name: "asc" }] });
+    const agents = await this.prisma.agent.findMany({ orderBy: [{ kind: "desc" }, { name: "asc" }] });
     return agents.map(toRecord);
+  }
+
+  /** What every bot already wears, so a recommendation doesn't hand out a duplicate. */
+  async looks() {
+    return (await this.list()).map(({ avatar, color }) => ({ avatar, color }));
   }
 
   async get(name: string): Promise<AgentRecord | null> {
@@ -104,7 +118,7 @@ export class DsaService {
     await this.hermes.createProfile(spec.name);
     const dir = this.hermes.profileDir(spec.name);
 
-    writeFileSync(join(dir, "SOUL.md"), kind === "dsa" ? spec.soul.trimEnd() + "\n" + DSA_CONTRACT : spec.soul);
+    writeFileSync(join(dir, "SOUL.md"), soulFile(kind, spec.soul));
     patchConfigYaml(join(dir, "config.yaml"), {
       model: spec.model,
       skills: { external_dirs: [...packDirs, ...spec.skillDirs] },
@@ -122,6 +136,7 @@ export class DsaService {
       { drop: LISTENER_ENV_KEYS },
     );
 
+    const look = recommendLook(spec, await this.looks());
     await this.prisma.agent.create({
       data: {
         name: spec.name,
@@ -131,6 +146,8 @@ export class DsaService {
         provider: spec.model.provider,
         model: spec.model.default,
         spec: storableSpec(spec),
+        color: spec.color ?? look.color,
+        avatar: spec.avatar ?? look.avatar,
         ...(spec.budget && {
           budget: { create: { monthlyTokens: spec.budget.monthlyTokens ?? null, monthlyUsd: spec.budget.monthlyUsd ?? null } },
         }),
@@ -139,6 +156,45 @@ export class DsaService {
 
     if (!(opts.start ?? true)) await this.hermes.park(spec.name);
     return this.require(spec.name);
+  }
+
+  async spec(name: string): Promise<AgentSpec> {
+    const agent = await this.prisma.agent.findUnique({ where: { name } });
+    if (!agent) throw new NotFoundException(`Agent "${name}" not found`);
+    return agent.spec as unknown as AgentSpec;
+  }
+
+  /** Edits what makes a bot itself; SOUL.md and config.yaml are rewritten so Hermes picks it up on the next turn. */
+  async update(name: string, patch: AgentPatch): Promise<AgentRecord> {
+    const agent = await this.require(name);
+    const spec = await this.spec(name);
+    const next = {
+      ...spec,
+      ...(patch.description !== undefined && { description: patch.description }),
+      ...(patch.domains !== undefined && { domains: patch.domains }),
+      ...(patch.instructions !== undefined && { soul: patch.instructions }),
+      ...(patch.model !== undefined && { model: patch.model }),
+    };
+    const dir = this.hermes.profileDir(name);
+    if (patch.instructions !== undefined) writeFileSync(join(dir, "SOUL.md"), soulFile(agent.kind, next.soul));
+    if (patch.model !== undefined) patchConfigYaml(join(dir, "config.yaml"), { model: patch.model });
+    await this.prisma.agent.update({
+      where: { name },
+      data: {
+        description: next.description,
+        domains: next.domains,
+        provider: next.model.provider,
+        model: next.model.default,
+        spec: JSON.parse(JSON.stringify(next)),
+        ...(patch.color !== undefined && { color: patch.color }),
+        ...(patch.avatar !== undefined && { avatar: patch.avatar }),
+      },
+    });
+    return this.require(name);
+  }
+
+  async setThread(name: string, threadId: string): Promise<void> {
+    await this.prisma.agent.update({ where: { name }, data: { threadId } });
   }
 
   async remove(name: string): Promise<void> {

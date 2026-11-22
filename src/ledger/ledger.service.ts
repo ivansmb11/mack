@@ -81,6 +81,19 @@ export class LedgerService {
     return this.prisma.subscription.findMany({ orderBy: { renewsOn: "asc" } });
   }
 
+  /** Every agent with its budget and this month's spend, including agents that have not run yet. */
+  async budgets() {
+    const agents = await this.prisma.agent.findMany({ select: { name: true, kind: true, budget: true }, orderBy: { name: "asc" } });
+    return Promise.all(
+      agents.map(async (a) => ({
+        agent: a.name,
+        kind: a.kind,
+        budget: a.budget && { monthlyTokens: a.budget.monthlyTokens, monthlyUsd: a.budget.monthlyUsd },
+        spend: await this.monthSpend(a.name),
+      })),
+    );
+  }
+
   async summary() {
     const [grouped, subscriptions, metered] = await Promise.all([
       this.prisma.usage.groupBy({

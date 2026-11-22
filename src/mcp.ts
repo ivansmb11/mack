@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { AVATAR_IDS } from "./dsa/avatars.js";
 import { apiClient, loadMackEnv } from "./api-client.js";
 
 loadMackEnv();
@@ -38,6 +39,11 @@ server.registerTool(
         disabledToolsets: z.array(z.string()).optional(),
         budget: z.object({ monthlyTokens: z.number().optional(), monthlyUsd: z.number().optional() }).optional(),
         soul: z.string(),
+        avatar: z
+          .enum(AVATAR_IDS)
+          .optional()
+          .describe("Forma del avatar. Usa la que Iván eligió; si no eligió, omítelo y Mack recomienda una según los dominios"),
+        color: z.string().optional().describe("Color #rrggbb del avatar. Igual que avatar: el de Iván, o se omite"),
       }),
     },
   },

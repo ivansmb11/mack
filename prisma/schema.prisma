@@ -22,6 +22,12 @@ model Agent {
   provider    String
   model       String
   spec        Json
+  /// The bot's avatar body color; empty means use the recommended look.
+  color       String    @default("")
+  /// An open-bot-avatar shape id; empty means use the recommended look.
+  avatar      String    @default("")
+  /// The Hermes session that holds the bot's one continuous chat with Iván.
+  threadId    String?
   createdAt   DateTime  @default(now())
   budget      Budget?
 }
@@ -90,4 +96,27 @@ model FactoryJob {
   finishedAt DateTime?
 
   @@index([status, createdAt])
+}
+
+/// A room where Iván and several bots talk; bots answer when @mentioned or routed by Matrix.
+model Group {
+  id        String         @id
+  name      String
+  /// Agent names, in display order. Not FKs: removing a bot leaves the group's history intact.
+  members   Json
+  createdAt DateTime       @default(now())
+  messages  GroupMessage[]
+}
+
+model GroupMessage {
+  id        Int      @id @default(autoincrement())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  /// "user" for Iván, otherwise the bot's name.
+  author    String
+  content   String
+  error     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([groupId, id])
 }

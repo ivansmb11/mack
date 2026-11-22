@@ -27,6 +27,11 @@ export class LedgerController {
     return this.ledger.removeSubscription(id);
   }
 
+  @Get("budgets")
+  budgets() {
+    return this.ledger.budgets();
+  }
+
   @Put("budgets/:agent")
   async setBudget(@Param("agent") agent: string, @Body({ schema: BudgetSchema }) budget: BudgetInput) {
     await this.ledger.setBudget(agent, budget);

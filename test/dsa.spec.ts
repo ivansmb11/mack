@@ -28,7 +28,7 @@ describe("DSA creation", () => {
     expect(t.hermes.served("finanzas")).toBe(true);
 
     const dir = t.hermes.profileDir("finanzas");
-    expect(readFileSync(join(dir, "SOUL.md"), "utf8")).toMatch(/Contrato con Matrix/);
+    expect(readFileSync(join(dir, "SOUL.md"), "utf8")).toMatch(/Cómo trabajas en Mack/);
     const yaml = parse(readFileSync(join(dir, "config.yaml"), "utf8"));
     expect(yaml.model).toEqual({ provider: "anthropic", default: "claude-sonnet-5-5" });
     expect(yaml.skills.external_dirs).toEqual([join(t.root, "packs", "demo")]);
@@ -87,7 +87,7 @@ describe("DSA creation", () => {
     expect(config.mcp_servers.mack.env.MACK_TOKEN).toBe("t".repeat(64));
     const stored = await t.get<PrismaService>(PrismaService).agent.findUnique({ where: { name: "mack" } });
     expect(JSON.stringify(stored!.spec)).not.toContain("t".repeat(64));
-    expect(readFileSync(join(t.hermes.profileDir("mack"), "SOUL.md"), "utf8")).not.toMatch(/Contrato con Matrix/);
+    expect(readFileSync(join(t.hermes.profileDir("mack"), "SOUL.md"), "utf8")).not.toMatch(/Cómo trabajas en Mack/);
 
     expect((await t.api.delete("/api/agents/mack")).status).toBe(409);
   });
