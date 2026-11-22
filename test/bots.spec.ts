@@ -44,8 +44,8 @@ describe("toChat", () => {
       { id: 5, role: "session_meta", content: null, tool_calls: null, tool_name: null, timestamp: 5 },
     ]);
     expect(chat).toEqual([
-      { id: "1", role: "user", content: "¿gastos?", toolsUsed: [], at: new Date(1000).toISOString() },
-      { id: "4", role: "assistant", content: "Llevas $12", toolsUsed: ["ledger_summary"], at: new Date(4000).toISOString() },
+      { id: "1", role: "user", content: "¿gastos?", toolsUsed: [], attachments: [], at: new Date(1000).toISOString() },
+      { id: "4", role: "assistant", content: "Llevas $12", toolsUsed: ["ledger_summary"], attachments: [], at: new Date(4000).toISOString() },
     ]);
   });
 });

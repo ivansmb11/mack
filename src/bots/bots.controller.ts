@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Res } from "@nestjs/common";
 import type { Response } from "express";
 import { DsaService } from "../dsa/dsa.service.js";
 import { type AgentPatch, AgentPatchSchema } from "../dsa/dsa.schemas.js";
@@ -31,14 +31,20 @@ export class BotsController {
     return this.dsas.update(name, patch);
   }
 
+  /** Files sent in the chat; the browser fetches them with the bearer token, so plain <img src> can't be used. */
+  @Get(":name/attachments")
+  async attachment(@Param("name") name: string, @Query("path") path: string, @Res() res: Response) {
+    res.sendFile(await this.bots.attachment(name, path ?? ""), { dotfiles: "allow" });
+  }
+
   @Get(":name/messages")
   messages(@Param("name") name: string) {
     return this.bots.messages(name);
   }
 
   @Post(":name/chat")
-  chat(@Param("name") name: string, @Body({ schema: ChatSchema }) { message }: z.output<typeof ChatSchema>, @Res() res: Response) {
-    return this.bots.chat(name, message, res);
+  chat(@Param("name") name: string, @Body({ schema: ChatSchema }) { message, attachments }: z.output<typeof ChatSchema>, @Res() res: Response) {
+    return this.bots.chat(name, message, attachments, res);
   }
 
   @Post(":name/runs/:runId/approval")

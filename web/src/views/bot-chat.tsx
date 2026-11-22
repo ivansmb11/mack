@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, CalendarClock, Loader2, PanelRight, ShieldAlert, Square, Wrench } from "lucide-react";
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ArrowUp, CalendarClock, Loader2, PanelRight, Paperclip, ShieldAlert, Square, Wrench } from "lucide-react";
+import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AvatarState } from "open-bot-avatar";
+import { MessageAttachments, PendingAttachments } from "@/components/attachments";
 import { BotAvatar } from "@/components/bot-avatar";
 import { Markdown } from "@/components/markdown";
 import { StatusDot } from "@/components/status";
@@ -11,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { keys, useBotMessages, useBots, useHealth } from "@/hooks/queries";
 import { post } from "@/lib/api";
+import { MAX_ATTACHMENTS, type PendingAttachment, prepareAttachment } from "@/lib/attachments";
 import { formatClock } from "@/lib/format";
 import { postSse } from "@/lib/sse";
 import type { ApprovalChoice, ApprovalRequest, ChatMessage } from "@/lib/types";
@@ -25,6 +27,7 @@ interface ToolRun {
 
 interface LiveTurn {
   user: string;
+  attachments: PendingAttachment[];
   reply: string;
   tools: ToolRun[];
   runId?: string;
@@ -207,6 +210,9 @@ export function BotChatView({ name }: { name: string }) {
   const up = health.data?.find((h) => h.agent === name)?.up;
 
   const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
   const [panel, setPanel] = useState<PanelTab | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const streaming = live !== null && !live.error;
@@ -214,19 +220,55 @@ export function BotChatView({ name }: { name: string }) {
   useEffect(() => {
     setLive(null);
     setDraft("");
+    setPending([]);
   }, [name]);
+
+  async function attach(files: Iterable<File>) {
+    const list = [...files];
+    if (!list.length) return;
+    if (pending.length + list.length > MAX_ATTACHMENTS) {
+      toast.error(`Máximo ${MAX_ATTACHMENTS} adjuntos por mensaje.`);
+      return;
+    }
+    const results = await Promise.allSettled(list.map(prepareAttachment));
+    for (const r of results) if (r.status === "rejected") toast.error((r.reason as Error).message);
+    setPending((p) => [...p, ...results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []))]);
+  }
+
+  function unattach(id: string) {
+    setPending((p) => {
+      const gone = p.find((a) => a.id === id);
+      if (gone?.preview) URL.revokeObjectURL(gone.preview);
+      return p.filter((a) => a.id !== id);
+    });
+  }
+
+  const onPaste = (e: ClipboardEvent) => {
+    const files = [...e.clipboardData.files];
+    if (!files.length) return;
+    e.preventDefault();
+    attach(files);
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    attach(e.dataTransfer.files);
+  };
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [messages.data, live]);
 
   async function send(text: string) {
     const message = text.trim();
-    if (!message || streaming) return;
+    const attachments = pending;
+    if ((!message && !attachments.length) || streaming) return;
     setDraft("");
-    let turn: LiveTurn = { user: message, reply: "", tools: [] };
+    setPending([]);
+    let turn: LiveTurn = { user: message, attachments, reply: "", tools: [] };
     setLive(turn);
     try {
-      for await (const { event, data } of postSse(`/api/bots/${name}/chat`, { message })) {
+      const body = { message, attachments: attachments.map(({ name, type, data }) => ({ name, type, data })) };
+      for await (const { event, data } of postSse(`/api/bots/${name}/chat`, body)) {
         turn = applyEvent(turn, event, data);
         setLive(turn);
       }
@@ -262,7 +304,23 @@ export function BotChatView({ name }: { name: string }) {
 
   return (
     <div className="flex min-w-0 flex-1">
-      <section className="flex min-w-0 flex-1 flex-col">
+      <section
+        className="relative flex min-w-0 flex-1 flex-col"
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={onDrop}
+      >
+        {dragging && (
+          <div className="bg-background/80 border-signal pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-2xl border-2 border-dashed">
+            <p className="text-lg">Suelta para adjuntarlo a {name}</p>
+          </div>
+        )}
         <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4">
           <div className="w-20" />
           <button
@@ -316,19 +374,25 @@ export function BotChatView({ name }: { name: string }) {
                   {m.role === "routine" ? (
                     <RoutinePost message={m} onOpenRoutines={() => setPanel("rutinas")} />
                   ) : (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-1.5">
                       {m.role === "assistant" && <ToolsUsed tools={m.toolsUsed} />}
-                      <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
+                      {m.role === "user" && <MessageAttachments bot={name} items={m.attachments} />}
+                      {m.content && (
+                        <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
+                      )}
                     </div>
                   )}
                 </li>
               ))}
               {live && (
                 <>
-                  <li>
-                    <Bubble role="user">
-                      <span className="whitespace-pre-wrap">{live.user}</span>
-                    </Bubble>
+                  <li className="flex flex-col gap-1.5">
+                    <PendingAttachments items={live.attachments} className="justify-end" />
+                    {live.user && (
+                      <Bubble role="user">
+                        <span className="whitespace-pre-wrap">{live.user}</span>
+                      </Bubble>
+                    )}
                   </li>
                   <li className="flex flex-col gap-2">
                     <LiveTools tools={live.tools} />
@@ -353,14 +417,29 @@ export function BotChatView({ name }: { name: string }) {
         </div>
 
         <form onSubmit={onSubmit} className="px-4 pt-1 pb-4">
-          <div className="bg-card focus-within:ring-ring/50 mx-auto flex max-w-3xl items-end gap-2 rounded-3xl border p-1.5 pl-4 focus-within:ring-2">
+          <div className="bg-card focus-within:ring-ring/50 mx-auto flex max-w-3xl flex-wrap items-end gap-2 rounded-3xl border p-1.5 focus-within:ring-2">
+            <PendingAttachments items={pending} onRemove={unattach} className="w-full px-2.5 pt-2" />
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                attach(e.target.files ?? []);
+                e.target.value = "";
+              }}
+            />
+            <Button type="button" size="icon" variant="ghost" className="rounded-full" onClick={() => picker.current?.click()} aria-label="Adjuntar imágenes o archivos">
+              <Paperclip />
+            </Button>
             <Textarea
+              onPaste={onPaste}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder={`Escríbele a ${name}`}
               rows={1}
-              className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              className="max-h-48 min-h-10 flex-1 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
               aria-label={`Mensaje para ${name}`}
             />
             {streaming ? (
@@ -368,7 +447,7 @@ export function BotChatView({ name }: { name: string }) {
                 <Square />
               </Button>
             ) : (
-              <Button type="submit" size="icon" className="rounded-full" disabled={!draft.trim()} aria-label="Enviar">
+              <Button type="submit" size="icon" className="rounded-full" disabled={!draft.trim() && !pending.length} aria-label="Enviar">
                 <ArrowUp />
               </Button>
             )}

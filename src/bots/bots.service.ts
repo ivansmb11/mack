@@ -5,11 +5,12 @@ import { HERMES, type Hermes } from "../hermes/hermes.js";
 import { LedgerService } from "../ledger/ledger.service.js";
 import type { RoutineInput } from "./bots.schemas.js";
 import { HermesApi } from "./hermes-api.js";
+import { type Attachment, type AttachmentInput, buildTurn, extractAttachments, resolveAttachment } from "./attachments.js";
 import { type RoutinePost, type RoutineRun, readRoutinePosts, readRuns } from "./routine-runs.js";
 import { openSse, readSse } from "./sse.js";
 
 export type ChatMessage =
-  | { id: string; role: "user" | "assistant"; content: string; toolsUsed: string[]; at: string }
+  | { id: string; role: "user" | "assistant"; content: string; toolsUsed: string[]; attachments: Attachment[]; at: string }
   | { id: string; role: "routine"; content: string; routine: RoutinePost["routine"]; failed: boolean; at: string };
 
 export interface BotSummary extends AgentRecord {
@@ -86,18 +87,21 @@ const toRoutine = (j: HermesJob): Routine => ({
 });
 
 /** Folds Hermes' transcript (tool calls, tool results, metadata rows) into the chat a person reads. */
-export function toChat(rows: HermesMessage[]): ChatMessage[] {
+export function toChat(rows: HermesMessage[], profileDir = ""): ChatMessage[] {
   const chat: ChatMessage[] = [];
   let pendingTools: string[] = [];
   for (const row of rows) {
     if (row.role === "assistant" && row.tool_calls?.length)
       pendingTools.push(...row.tool_calls.map((c) => c.function?.name ?? "herramienta"));
     if ((row.role !== "user" && row.role !== "assistant") || !row.content?.trim()) continue;
+    const { content, attachments } =
+      row.role === "user" ? extractAttachments(profileDir, withoutRoutineContext(row.content)) : { content: row.content, attachments: [] };
     chat.push({
       id: String(row.id),
       role: row.role,
-      content: row.role === "user" ? withoutRoutineContext(row.content) : row.content,
+      content,
       toolsUsed: row.role === "assistant" ? pendingTools : [],
+      attachments,
       at: toIso(row.timestamp),
     });
     if (row.role === "assistant") pendingTools = [];
@@ -174,7 +178,7 @@ export class BotsService {
       agent.name,
       `/api/sessions/${agent.threadId}/messages?limit=${limit}&order=latest`,
     );
-    return toChat(data);
+    return toChat(data, this.profiles.profileDir(agent.name));
   }
 
   /** Results posted after the thread's last message. Best-effort: a hiccup reading the thread mustn't block Iván's message. */
@@ -216,14 +220,17 @@ export class BotsService {
    * Relays one turn of Hermes' session stream to the browser. The upstream is read to the end even if
    * the browser leaves, so the bot finishes its work, the turn lands in its thread and usage is metered.
    */
-  async chat(name: string, message: string, res: Response): Promise<void> {
+  async chat(name: string, message: string, attachments: AttachmentInput[], res: Response): Promise<void> {
     const agent = await this.dsas.require(name);
     await this.ledger.assertWithinBudget(name);
     const thread = await this.thread(name);
     const unseen = await this.unseenRoutineResults({ ...agent, threadId: thread });
     const upstream = await this.hermes.request(name, `/api/sessions/${thread}/chat/stream`, {
       method: "POST",
-      json: { message: withRoutineContext(message, unseen), author: { id: "ivan", name: "Iván" } },
+      json: {
+        message: buildTurn(this.profiles.profileDir(name), withRoutineContext(message, unseen), attachments),
+        author: { id: "ivan", name: "Iván" },
+      },
     });
     if (!upstream.ok || !upstream.body)
       throw new BadRequestException(`${name} no aceptó el mensaje: ${await upstream.text()}`);
@@ -239,6 +246,11 @@ export class BotsService {
       }
     }
     res.end();
+  }
+
+  async attachment(name: string, path: string): Promise<string> {
+    await this.dsas.require(name);
+    return resolveAttachment(this.profiles.profileDir(name), path);
   }
 
   async approve(name: string, runId: string, choice: string, requestId?: string): Promise<void> {

@@ -1,6 +1,12 @@
 import { z } from "zod";
+import { AttachmentSchema, MAX_ATTACHMENTS } from "./attachments.js";
 
-export const ChatSchema = z.object({ message: z.string().trim().min(1).max(20_000) });
+export const ChatSchema = z
+  .object({
+    message: z.string().trim().max(20_000).default(""),
+    attachments: z.array(AttachmentSchema).max(MAX_ATTACHMENTS).default([]),
+  })
+  .refine((c) => c.message || c.attachments.length, "Escribe un mensaje o adjunta algo");
 
 export const ApprovalSchema = z.object({
   choice: z.enum(["once", "session", "always", "deny"]),

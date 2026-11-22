@@ -112,9 +112,15 @@ export interface LedgerSummary {
   subscriptions: Subscription[];
 }
 
+export interface ChatAttachment {
+  kind: "image" | "file";
+  name: string;
+  path: string;
+}
+
 /** A routine's result appears in the bot's chat as if the bot posted it. */
 export type ChatMessage =
-  | { id: string; role: "user" | "assistant"; content: string; toolsUsed: string[]; at: string }
+  | { id: string; role: "user" | "assistant"; content: string; toolsUsed: string[]; attachments: ChatAttachment[]; at: string }
   | { id: string; role: "routine"; content: string; routine: { id: string; name: string }; failed: boolean; at: string };
 
 export interface Bot extends Agent {

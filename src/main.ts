@@ -9,6 +9,8 @@ import { WEB_DIST } from "./web/web.controller.js";
 /** Shared by main and the e2e tests so both run the exact same HTTP pipeline. */
 export function configureApp(app: NestExpressApplication): INestApplication {
   app.useBodyParser("text", { type: "application/yaml" });
+  // Chat attachments travel as base64 JSON: MAX_ATTACHMENTS files of up to 20 MB, a third bigger once encoded.
+  app.useBodyParser("json", { limit: "60mb" });
   app.useStaticAssets(WEB_DIST, { index: false, maxAge: "1y", immutable: true });
   app.useGlobalPipes(new StandardSchemaValidationPipe());
   app.enableShutdownHooks();
