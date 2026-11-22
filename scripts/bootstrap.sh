@@ -78,7 +78,7 @@ fi
 if ! grep -qE '^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=' "$DATA/.env"; then
   echo "El Factory necesita credenciales de Claude Code. Con tu suscripción Max: corre 'claude setup-token'."
   read -rsp "Pega el CLAUDE_CODE_OAUTH_TOKEN (Enter para omitir): " cc_token; echo
-  [[ -n "$cc_token" ]] && echo "CLAUDE_CODE_OAUTH_TOKEN=$cc_token" >> "$DATA/.env"
+  if [[ -n "$cc_token" ]]; then echo "CLAUDE_CODE_OAUTH_TOKEN=$cc_token" >> "$DATA/.env"; fi
 fi
 
 step "Base de datos (Prisma migrate)"
@@ -94,7 +94,7 @@ env_set "$HOME/.hermes/.env" API_SERVER_HOST 127.0.0.1
 env_set "$HOME/.hermes/.env" API_SERVER_PORT 8642
 env_set "$HOME/.hermes/.env" API_SERVER_KEY "$(openssl rand -hex 32)" --keep
 for profile_env in "$HOME"/.hermes/profiles/*/.env; do
-  [[ -f "$profile_env" ]] && sed -i '' -E '/^API_SERVER_(ENABLED|HOST|PORT)=/d' "$profile_env"
+  if [[ -f "$profile_env" ]]; then sed -i '' -E '/^API_SERVER_(ENABLED|HOST|PORT)=/d' "$profile_env"; fi
 done
 hermes config set gateway.multiplex_profiles true
 hermes gateway install
@@ -115,7 +115,7 @@ fi
 if ! grep -q '^TELEGRAM_BOT_TOKEN=' "$HOME/.hermes/profiles/mack/.env" 2>/dev/null; then
   read -rp "¿Conectar Telegram a Mack ahora? [Y/n] " tg
   # Under the multiplexer this only stores the bot credentials; the host gateway picks them up.
-  [[ "${tg:-y}" =~ ^[Yy]$ ]] && hermes -p mack setup gateway
+  if [[ "${tg:-y}" =~ ^[Yy]$ ]]; then hermes -p mack setup gateway; fi
 fi
 
 step "Acceso remoto"
