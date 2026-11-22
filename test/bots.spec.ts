@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { toChat } from "../src/bots/bots.service.js";
@@ -44,8 +44,8 @@ describe("toChat", () => {
       { id: 5, role: "session_meta", content: null, tool_calls: null, tool_name: null, timestamp: 5 },
     ]);
     expect(chat).toEqual([
-      { id: 1, role: "user", content: "¿gastos?", toolsUsed: [], at: new Date(1000).toISOString() },
-      { id: 4, role: "assistant", content: "Llevas $12", toolsUsed: ["ledger_summary"], at: new Date(4000).toISOString() },
+      { id: "1", role: "user", content: "¿gastos?", toolsUsed: [], at: new Date(1000).toISOString() },
+      { id: "4", role: "assistant", content: "Llevas $12", toolsUsed: ["ledger_summary"], at: new Date(4000).toISOString() },
     ]);
   });
 });
@@ -117,6 +117,8 @@ describe("Bots", () => {
     mkdirSync(out, { recursive: true });
     writeFileSync(join(out, "2026-11-20_07-00-01.md"), "resumen viejo");
     writeFileSync(join(out, "2026-11-21_07-00-02.md"), "resumen nuevo");
+    utimesSync(join(out, "2026-11-20_07-00-01.md"), new Date("2026-11-20T13:00:01Z"), new Date("2026-11-20T13:00:01Z"));
+    utimesSync(join(out, "2026-11-21_07-00-02.md"), new Date("2026-11-21T13:00:02Z"), new Date("2026-11-21T13:00:02Z"));
 
     const created = await t.api.post("/api/bots/finanzas/routines", { name: "Corte", prompt: "Resume gastos", schedule: "0 7 * * 1-5" });
     const runs = await t.api.get("/api/bots/finanzas/routines/abcdef123456/runs");
@@ -124,8 +126,8 @@ describe("Bots", () => {
     expect(created.body).toMatchObject({ id: "abcdef123456", schedule: "0 7 * * 1-5", enabled: true });
     expect(hermes.calls[0].body).toMatchObject({ deliver: "local" });
     expect(runs.body).toEqual([
-      { at: "2026-11-21T07:00:02", output: "resumen nuevo" },
-      { at: "2026-11-20T07:00:01", output: "resumen viejo" },
+      { id: "2026-11-21_07-00-02", at: "2026-11-21T13:00:02.000Z", output: "resumen nuevo", failed: false },
+      { id: "2026-11-20_07-00-01", at: "2026-11-20T13:00:01.000Z", output: "resumen viejo", failed: false },
     ]);
     expect((await t.api.get("/api/bots/finanzas/routines/../../etc/runs")).status).not.toBe(200);
     expect((await t.api.post("/api/bots/finanzas/routines/abcdef123456/explode")).status).toBe(404);

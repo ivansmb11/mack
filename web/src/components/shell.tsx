@@ -68,7 +68,7 @@ function Sidebar({ route, onNavigate, onLogout }: { route: Route; onNavigate: (r
     up.get(b.name) === false
       ? "Estacionado"
       : b.lastMessage
-        ? `${b.lastMessage.role === "user" ? "Tú: " : ""}${previewText(b.lastMessage.content)}`
+        ? `${{ user: "Tú: ", assistant: "", routine: "Rutina: " }[b.lastMessage.role]}${previewText(b.lastMessage.content)}`
         : b.description;
   const groupPreview = (g: Group) =>
     g.lastMessage ? `${g.lastMessage.author === "user" ? "Tú" : g.lastMessage.author}: ${previewText(g.lastMessage.content)}` : g.members.map((m) => `@${m}`).join(" ");

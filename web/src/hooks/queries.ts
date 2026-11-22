@@ -183,8 +183,13 @@ export function useSaveBudget() {
 
 export const useBots = () => useQuery({ queryKey: keys.bots, queryFn: () => api<Bot[]>("/api/bots"), refetchInterval: 30_000 });
 export const useBotProfile = (name: string) => useQuery({ queryKey: keys.bot(name), queryFn: () => api<BotProfile>(`/api/bots/${name}`) });
-export const useBotMessages = (name: string) =>
-  useQuery({ queryKey: keys.messages(name), queryFn: () => api<ChatMessage[]>(`/api/bots/${name}/messages`) });
+/** Polls so routine results show up on their own; paused mid-turn so the live reply isn't shown twice. */
+export const useBotMessages = (name: string, { poll = true } = {}) =>
+  useQuery({
+    queryKey: keys.messages(name),
+    queryFn: () => api<ChatMessage[]>(`/api/bots/${name}/messages`),
+    refetchInterval: poll ? 30_000 : false,
+  });
 export const useRoutines = (name: string) =>
   useQuery({ queryKey: keys.routines(name), queryFn: () => api<Routine[]>(`/api/bots/${name}/routines`) });
 export const useRoutineRuns = (name: string, id: string, enabled: boolean) =>

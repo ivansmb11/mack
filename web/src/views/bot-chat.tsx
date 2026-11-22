@@ -75,6 +75,24 @@ function ToolsUsed({ tools }: { tools: string[] }) {
   );
 }
 
+function RoutinePost({ message, onOpenRoutines }: { message: Extract<ChatMessage, { role: "routine" }>; onOpenRoutines: () => void }) {
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={onOpenRoutines}
+        className="text-muted-foreground hover:text-foreground mb-1.5 flex w-fit items-center gap-1.5 text-xs transition-colors"
+      >
+        <CalendarClock className="size-3" />
+        Rutina “{message.routine.name}”{message.failed && " falló"}
+      </button>
+      <Bubble role="assistant" error={message.failed}>
+        <Markdown>{message.content}</Markdown>
+      </Bubble>
+    </div>
+  );
+}
+
 function Bubble({ role, children, error }: { role: "user" | "assistant"; children: React.ReactNode; error?: boolean }) {
   return (
     <div
@@ -183,12 +201,12 @@ export function BotChatView({ name }: { name: string }) {
   const qc = useQueryClient();
   const bots = useBots();
   const health = useHealth();
-  const messages = useBotMessages(name);
+  const [live, setLive] = useState<LiveTurn | null>(null);
+  const messages = useBotMessages(name, { poll: live === null });
   const bot = bots.data?.find((b) => b.name === name);
   const up = health.data?.find((h) => h.agent === name)?.up;
 
   const [draft, setDraft] = useState("");
-  const [live, setLive] = useState<LiveTurn | null>(null);
   const [panel, setPanel] = useState<PanelTab | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const streaming = live !== null && !live.error;
@@ -295,10 +313,14 @@ export function BotChatView({ name }: { name: string }) {
               {history.map((m, i) => (
                 <li key={m.id} className="contents">
                   {(i === 0 || dayKey(history[i - 1].at) !== dayKey(m.at)) && <DaySeparator iso={m.at} />}
-                  <div className="flex flex-col">
-                    {m.role === "assistant" && <ToolsUsed tools={m.toolsUsed} />}
-                    <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
-                  </div>
+                  {m.role === "routine" ? (
+                    <RoutinePost message={m} onOpenRoutines={() => setPanel("rutinas")} />
+                  ) : (
+                    <div className="flex flex-col">
+                      {m.role === "assistant" && <ToolsUsed tools={m.toolsUsed} />}
+                      <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
+                    </div>
+                  )}
                 </li>
               ))}
               {live && (

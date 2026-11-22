@@ -231,8 +231,11 @@ function RoutineRuns({ bot, routine }: { bot: string; routine: Routine }) {
   return (
     <ol className="space-y-3">
       {runs.data.map((r) => (
-        <li key={r.at} className="bg-background rounded-md border p-3">
-          <p className="text-muted-foreground mb-1.5 text-xs">{new Date(r.at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</p>
+        <li key={r.id} className={cn("bg-background rounded-md border p-3", r.failed && "border-destructive/50")}>
+          <p className={cn("text-muted-foreground mb-1.5 text-xs", r.failed && "text-destructive")}>
+            {new Date(r.at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+            {r.failed && " · falló"}
+          </p>
           <Markdown className="max-h-64 overflow-y-auto text-sm">{r.output}</Markdown>
         </li>
       ))}
