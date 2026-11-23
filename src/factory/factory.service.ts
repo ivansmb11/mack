@@ -5,13 +5,15 @@ import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException, type OnApplicationBootstrap } from "@nestjs/common";
 import { type MackConfig, MACK_CONFIG, PROJECT_ROOT } from "../config/config.js";
-import type { FactoryJob, JobStatus } from "../generated/prisma/client.js";
+import type { FactoryJob, FactoryStep, JobStatus } from "../generated/prisma/client.js";
 import { PacksService } from "../packs/packs.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { AGENT_RUNNER, type AgentRunner } from "./agent-runner.js";
+import { AGENT_RUNNER, type AgentRunner, type JobStep } from "./agent-runner.js";
 import type { JobSpec } from "./factory.schemas.js";
 
 const OUTPUT_TAIL_CHARS = 4_000;
+const STEP_TEXT_CHARS = 2_000;
+const STEPS_PAGE = 500;
 
 export type Job = Omit<FactoryJob, "commits" | "workflow"> & { commits: string[]; workflow: JobSpec["workflow"] };
 
@@ -91,6 +93,12 @@ export class FactoryService implements OnApplicationBootstrap {
     return toJob(job);
   }
 
+  /** Timeline of a job, oldest first; pass the last seen step id as `after` to poll for new ones. */
+  async steps(id: string, after = 0): Promise<FactoryStep[]> {
+    await this.get(id);
+    return this.prisma.factoryStep.findMany({ where: { jobId: id, id: { gt: after } }, orderBy: { id: "asc" }, take: STEPS_PAGE });
+  }
+
   async list(limit = 50): Promise<Job[]> {
     return (await this.prisma.factoryJob.findMany({ orderBy: { createdAt: "desc" }, take: limit })).map(toJob);
   }
@@ -142,6 +150,7 @@ export class FactoryService implements OnApplicationBootstrap {
   }
 
   private async execute(job: FactoryJob): Promise<void> {
+    const timeline = this.timeline(job.id);
     try {
       const result = await this.runner({
         id: job.id,
@@ -155,11 +164,28 @@ export class FactoryService implements OnApplicationBootstrap {
         skillsDirs: await Promise.all(this.packs.resolve(this.factoryConfig.skillPacks).map((p) => this.packs.vendor(p))),
         promptFiles: { implement: promptFile("implement"), review: job.workflow === "implement_review" ? promptFile("review") : null },
         promptArgs: { TASK: job.task, BRANCH: job.branch, BASE: job.baseBranch },
+        onStep: timeline.record,
       });
+      await timeline.flushed();
       await this.finish(job.id, result.completed ? "done" : "incomplete", { commits: result.commits, output: result.output });
     } catch (err) {
+      await timeline.flushed();
       await this.finish(job.id, "failed", { error: err instanceof Error ? err.message : String(err) });
     }
+  }
+
+  /** Writes steps one at a time so their autoincrement ids keep the order the runner emitted them in. */
+  private timeline(jobId: string) {
+    let chain = Promise.resolve();
+    const record = ({ text, ...step }: JobStep) => {
+      chain = chain
+        .then(() => this.prisma.factoryStep.create({ data: { jobId, text: text.slice(0, STEP_TEXT_CHARS), ...step } }))
+        .then(
+          () => undefined,
+          (err) => this.logger.warn(`Could not record step for ${jobId}: ${err}`),
+        );
+    };
+    return { record, flushed: () => chain };
   }
 
   private async finish(id: string, status: JobStatus, fields: { commits?: string[]; output?: string; error?: string }) {

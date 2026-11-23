@@ -94,8 +94,28 @@ model FactoryJob {
   createdAt  DateTime    @default(now())
   startedAt  DateTime?
   finishedAt DateTime?
+  steps      FactoryStep[]
 
   @@index([status, createdAt])
+}
+
+enum StepKind {
+  status
+  tool
+  text
+}
+
+/// One line of a Factory job's live timeline: a Mack milestone, an agent tool call, or agent prose.
+model FactoryStep {
+  id     Int        @id @default(autoincrement())
+  jobId  String
+  job    FactoryJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  phase  String
+  kind   StepKind
+  text   String
+  at     DateTime   @default(now())
+
+  @@index([jobId, id])
 }
 
 /// A room where Iván and several bots talk; bots answer when @mentioned or routed by Matrix.

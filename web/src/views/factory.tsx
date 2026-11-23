@@ -1,6 +1,7 @@
 import { ArrowLeft, GitBranch, Hammer, Loader2, Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { EmptyState } from "@/components/page-header";
+import { JobTimeline } from "@/components/job-timeline";
 import { JobStatusBadge } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -160,6 +161,8 @@ function JobDetail({ job, onBack }: { job: Job; onBack: () => void }) {
         <p className="bg-muted/60 rounded-md p-3 whitespace-pre-wrap">{job.task}</p>
       </section>
 
+      <JobTimeline key={job.id} jobId={job.id} live={job.status === "running"} />
+
       {job.commits.length > 0 && (
         <section className="space-y-2">
           <h3>Commits</h3>
@@ -239,7 +242,7 @@ export function FactoryView() {
         {shownJob ? (
           <JobDetail job={shownJob} onBack={() => setSelected(null)} />
         ) : (
-          <div className="text-muted-foreground grid h-full place-items-center p-6 text-sm">Elige un trabajo para ver su rama, commits y salida.</div>
+          <div className="text-muted-foreground grid h-full place-items-center p-6 text-sm">Elige un trabajo para ver su rama, su proceso paso a paso y sus commits.</div>
         )}
       </section>
 

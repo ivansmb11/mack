@@ -1,3 +1,13 @@
+export type StepKind = "status" | "tool" | "text";
+
+/** One timeline entry: a runner milestone, an agent tool call, or agent prose. */
+export interface JobStep {
+  phase: string;
+  kind: StepKind;
+  text: string;
+  at: Date;
+}
+
 /** Everything one Sandcastle execution needs; the runner holds no Mack state. */
 export interface JobRun {
   id: string;
@@ -13,6 +23,8 @@ export interface JobRun {
   /** Absolute paths; Sandcastle fills their {{KEY}} placeholders from promptArgs (inline prompts are not templated). */
   promptFiles: { implement: string; review: string | null };
   promptArgs: Record<string, string>;
+  /** Called as the run progresses; must not throw. */
+  onStep: (step: JobStep) => void;
 }
 
 export interface RunnerResult {

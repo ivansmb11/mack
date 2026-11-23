@@ -16,6 +16,11 @@ export class FactoryController {
     return this.factory.list(limit ? Math.min(Number(limit), 200) : undefined);
   }
 
+  @Get(":id/steps")
+  steps(@Param("id") id: string, @Query("after") after?: string) {
+    return this.factory.steps(id, after ? Number(after) || 0 : 0);
+  }
+
   @Get(":id")
   get(@Param("id") id: string) {
     return this.factory.get(id);

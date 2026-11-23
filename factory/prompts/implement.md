@@ -12,12 +12,13 @@ Trabajas solo, sin humano disponible, en la rama `{{BRANCH}}` de este repo. En `
    - Docs de dominio: single-context, salvo que el repo sea un monorepo.
    - Archivo de agente: edita `CLAUDE.md` si existe; si no, `AGENTS.md`; si no existe ninguno, crea `CLAUDE.md`.
    - No crees etiquetas remotas ni hagas push. Haz commit de esa configuración en un commit propio (`chore: configure Matt Pocock skills`).
-1. Lee `CLAUDE.md`, `AGENTS.md`, `docs/agents/*.md` y `GLOSSARY.md` si existen (skill `domain-modeling`).
-2. Si la tarea es un spec o un ticket, sigue la skill `implement`. En todos los casos implementa con la skill `tdd`: escribe un test que falle, luego el mínimo código que lo pase, luego refactoriza.
-3. Si encuentras un bug que no entiendes, usa `diagnosing-bugs` y reprodúcelo antes de intentar arreglarlo.
-4. Diseña con `codebase-design`: módulos profundos con interfaces pequeñas.
-5. Corre la suite de tests y el typecheck del proyecto antes de cada commit. No hagas commit si algo falla.
-6. Haz commits pequeños con mensajes claros. No hagas push, no cambies de rama y no toques otras ramas.
+1. Si la tarea es un link o número de issue, léelo completo con `gh issue view <n> --repo <owner/repo> --comments` (`GH_TOKEN` ya está en el entorno). Si `gh` falla, dilo en el resumen en vez de adivinar el ticket por el historial de git. Si el issue ya está cerrado o el trabajo ya está en `{{BASE}}`, no reimplementes: verifícalo, resúmelo y termina.
+2. Lee `CLAUDE.md`, `AGENTS.md`, `docs/agents/*.md` y `GLOSSARY.md` si existen (skill `domain-modeling`).
+3. Si la tarea es un spec o un ticket, sigue la skill `implement`. En todos los casos implementa con la skill `tdd`: escribe un test que falle, luego el mínimo código que lo pase, luego refactoriza.
+4. Si encuentras un bug que no entiendes, usa `diagnosing-bugs` y reprodúcelo antes de intentar arreglarlo.
+5. Diseña con `codebase-design`: módulos profundos con interfaces pequeñas.
+6. Corre la suite de tests y el typecheck del proyecto antes de cada commit. No hagas commit si algo falla.
+7. Haz commits pequeños con mensajes claros. No hagas push, no cambies de rama y no toques otras ramas.
 
 # Cuándo terminar
 

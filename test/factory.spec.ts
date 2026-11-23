@@ -45,6 +45,32 @@ describe("Factory", () => {
     expect(readFileSync(join(repo, ".git/info/exclude"), "utf8")).toContain(".sandcastle/\n");
   });
 
+  it("records the runner's steps as a timeline the dashboard can poll", async () => {
+    t = await createTestApp({
+      runner: async (run) => {
+        run.onStep({ phase: "setup", kind: "status", text: "Sandbox listo", at: new Date() });
+        run.onStep({ phase: "implement", kind: "tool", text: "Bash(npm test)", at: new Date() });
+        run.onStep({ phase: "implement", kind: "text", text: "x".repeat(5_000), at: new Date() });
+        return { commits: [], completed: true, output: "" };
+      },
+    });
+    const repo = gitRepo(t.repos);
+    const { id } = (await t.api.post("/api/factory/jobs", { repo, task: "Agrega un endpoint /ping con tests" })).body;
+    await t.get<FactoryService>(FactoryService).drain();
+
+    const steps = (await t.api.get(`/api/factory/jobs/${id}/steps`)).body;
+    expect(steps.map((s: { phase: string; kind: string }) => [s.phase, s.kind])).toEqual([
+      ["setup", "status"],
+      ["implement", "tool"],
+      ["implement", "text"],
+    ]);
+    expect(steps[2].text).toHaveLength(2_000);
+
+    const newer = (await t.api.get(`/api/factory/jobs/${id}/steps?after=${steps[0].id}`)).body;
+    expect(newer.map((s: { text: string }) => s.text)[0]).toBe("Bash(npm test)");
+    expect((await t.api.get("/api/factory/jobs/job-nope/steps")).status).toBe(404);
+  });
+
   it("respects maxConcurrent and marks incomplete and failed runs", async () => {
     let running = 0;
     let peak = 0;

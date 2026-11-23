@@ -74,6 +74,17 @@ export interface Job {
   finishedAt: string | null;
 }
 
+export type JobStepKind = "status" | "tool" | "text";
+
+export interface JobStep {
+  id: number;
+  jobId: string;
+  phase: string;
+  kind: JobStepKind;
+  text: string;
+  at: string;
+}
+
 export interface Budget {
   monthlyTokens: number | null;
   monthlyUsd: number | null;

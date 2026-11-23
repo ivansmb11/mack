@@ -18,6 +18,7 @@ import type {
   RoutineRun,
   DispatchResult,
   Job,
+  JobStep,
   JobWorkflow,
   LedgerSummary,
   RouteDecision,
@@ -38,6 +39,7 @@ export const keys = {
   health: ["agents", "health"],
   templates: ["templates"],
   jobs: ["jobs"],
+  jobSteps: (id: string) => ["jobs", id, "steps"],
   ledger: ["ledger"],
   budgets: ["ledger", "budgets"],
 } as const;
@@ -74,6 +76,26 @@ export const useJobs = () =>
     queryFn: () => api<Job[]>("/api/factory/jobs?limit=50"),
     refetchInterval: (q) => (q.state.data?.some((j) => ACTIVE_JOB.has(j.status)) ? 4_000 : 30_000),
   });
+/** A job's timeline; while it runs, polls only for steps newer than the last one already held. */
+export function useJobSteps(id: string, live: boolean) {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: keys.jobSteps(id),
+    queryFn: async () => {
+      const held = client.getQueryData<JobStep[]>(keys.jobSteps(id)) ?? [];
+      const after = held.at(-1)?.id ?? 0;
+      const fresh = await api<JobStep[]>(`/api/factory/jobs/${id}/steps?after=${after}`);
+      return fresh.length ? [...held, ...fresh] : held;
+    },
+    refetchInterval: live ? 2_000 : false,
+  });
+  const { refetch } = query;
+  // The last steps land just before the job flips to finished; one more read once it stops being live catches them.
+  useEffect(() => {
+    if (!live) void refetch();
+  }, [live, refetch]);
+  return query;
+}
 export const useLedger = () => useQuery({ queryKey: keys.ledger, queryFn: () => api<LedgerSummary>("/api/ledger/summary") });
 export const useBudgets = () => useQuery({ queryKey: keys.budgets, queryFn: () => api<AgentBudget[]>("/api/ledger/budgets") });
 
