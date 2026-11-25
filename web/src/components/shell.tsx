@@ -62,9 +62,9 @@ function TopBar({ onNavigate, onLogout, onMenu }: { onNavigate: (r: Route) => vo
       <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir navegación" onClick={onMenu}>
         <Menu />
       </Button>
-      <button onClick={() => onNavigate({ view: "resumen" })} className="flex items-center gap-2 rounded-md pr-2 focus-visible:ring-2 focus-visible:outline-none md:w-60">
+      <button onClick={() => onNavigate({ view: "resumen" })} className="flex items-center gap-2 rounded-md pr-2 focus-visible:shadow-focus focus-visible:outline-none md:w-60">
         <MackMark className="size-6" />
-        <span className="text-[17px] font-semibold tracking-tight">Mack</span>
+        <span className="text-heading-16">Mack</span>
         <span className="text-muted-foreground hidden font-mono text-xs lg:inline">mac mini</span>
       </button>
 
@@ -80,7 +80,7 @@ function TopBar({ onNavigate, onLogout, onMenu }: { onNavigate: (r: Route) => vo
         <span className="bg-border my-2 hidden w-px shrink-0 sm:block" />
         <span className="hidden sm:contents">
           <Readout label="Factory" onClick={() => onNavigate({ view: "factory" })}>
-            {running > 0 && <span className="bg-primary size-2 animate-pulse rounded-full" />}
+            {running > 0 && <span className="bg-info size-2 animate-pulse rounded-full" />}
             {jobs.data ? (running || queued ? `${running} construyendo · ${queued} en cola` : "Libre") : "—"}
           </Readout>
         </span>
@@ -119,7 +119,7 @@ function ChatRow({ active, avatar, title, time, preview, onClick }: { active: bo
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors",
-        "hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+        "hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
         active && "bg-accent",
       )}
     >
@@ -166,13 +166,13 @@ function Rail({ route, onNavigate }: { route: Route; onNavigate: (r: Route) => v
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left transition-colors",
-                "hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+                "hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
                 active ? "bg-accent text-foreground font-medium" : "text-muted-foreground",
               )}
             >
-              <Icon className={cn("size-4", active && "text-primary")} />
+              <Icon className="size-4" />
               <span className="flex-1">{label}</span>
-              {page === "factory" && building > 0 && <span className="text-primary font-mono text-xs tabular-nums">{building}</span>}
+              {page === "factory" && building > 0 && <span className="text-blue-900 font-mono text-xs tabular-nums">{building}</span>}
             </button>
           );
         })}

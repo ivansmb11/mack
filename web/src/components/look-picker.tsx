@@ -35,7 +35,7 @@ export function LookPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-4">
-        <span className="bg-background grid size-20 shrink-0 place-items-center rounded-2xl border">
+        <span className="bg-background grid size-20 shrink-0 place-items-center rounded-xl border">
           {look && <BotAvatar name={name || "nuevo"} avatar={look.avatar} color={look.color} size={64} live />}
         </span>
         <div className="min-w-0 space-y-1">

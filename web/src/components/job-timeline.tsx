@@ -18,7 +18,7 @@ function StepRow({ step, index }: { step: JobStep; index: number }) {
   return (
     <li className="grid grid-cols-[2.25rem_1rem_1fr] items-start gap-x-2 py-1.5">
       <span className="text-muted-foreground pt-px text-right font-mono text-[11px] tabular-nums">{index + 1}</span>
-      <Icon className={cn("mt-0.5 size-3.5", step.kind === "status" ? "text-primary" : "text-muted-foreground")} />
+      <Icon className={cn("mt-0.5 size-3.5", step.kind === "status" ? "text-blue-700" : "text-muted-foreground")} />
       <button
         onClick={() => setOpen((o) => !o)}
         className="hover:bg-accent/60 focus-visible:ring-ring min-w-0 rounded px-1 -mx-1 text-left focus-visible:ring-2 focus-visible:outline-none"

@@ -4,10 +4,9 @@ The locked design system for `web/`. Every screen reads this file before it chan
 Extend or amend it here; don't override it per screen.
 
 ## System
-- Genre · modern-minimal (operational cockpit, not a landing page)
+- Design system · **Vercel Geist** (https://vercel.com/geist/introduction). Colour scales, type scale, materials, focus ring and button sizes follow Geist; values are copied verbatim from Geist's published CSS.
 - Brief · audience = Iván, the single operator · use = see what Mack, the bots and the Factory are doing at a glance, then act (chat, dispatch, queue a job) · tone = utilitarian, technical, quiet
-- Theme · custom, Cobalt family: cool near-white paper, ink near-black, **one** cobalt accent. Light by default, dark on demand.
-- Axes · light paper / geometric sans (Geist) / cool accent
+- Theme · neutral grays, black/white primary, colour only for meaning (blue = running/links/focus, green = ok, amber = warning, red = error). Light by default, dark on demand.
 - Signature element · the **live status strip** in the top bar (Mack, bots up, Factory slots, month spend). Boldness is spent there; everything else stays quiet.
 
 ## Macrostructure (app)
@@ -17,35 +16,54 @@ Extend or amend it here; don't override it per screen.
 - No decorative illustrations, glows, grids or gradients. Function carries the page.
 
 ## Tokens
-Defined once in `web/src/index.css` (`:root` and `.dark`), consumed through the shadcn names
-(`--background`, `--foreground`, `--primary`, …) plus three status tokens.
+Geist scales live in `web/src/index.css` as `--ds-*` (`:root` light, `.dark` dark) and are exposed as Tailwind colours:
+`gray-100…1000`, `gray-alpha-100…1000`, `blue-*`, `red-*`, `amber-*`, `green-*`, `background-100`, `background-200`.
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `--background` | oklch(98.6% 0.004 250) | oklch(16% 0.01 260) | paper |
-| `--card` | oklch(100% 0 0) | oklch(19.5% 0.012 260) | panes, cards |
-| `--foreground` | oklch(22% 0.02 260) | oklch(95% 0.006 250) | ink |
-| `--muted-foreground` | oklch(50% 0.02 260) | oklch(70% 0.015 255) | secondary text (≥ 4.5:1) |
-| `--border` | oklch(91.5% 0.008 255) | oklch(28% 0.014 260) | 1 px rules |
-| `--primary` | oklch(52% 0.2 262) | oklch(68% 0.16 262) | cobalt: primary action, focus, active nav, running |
-| `--ok` | oklch(58% 0.15 155) | oklch(72% 0.15 155) | online, done |
-| `--warn` | oklch(70% 0.15 75) | oklch(80% 0.14 80) | incomplete, budget near the limit |
-| `--destructive` | oklch(56% 0.21 27) | oklch(68% 0.18 25) | down, failed |
+Geist step meaning, for every scale:
 
-Status colours appear as dots and short labels, never as filled panels.
+| Step | Use |
+|---|---|
+| 100 / 200 / 300 | default / hover / active fill |
+| 400 / 500 / 600 | default / hover / active border |
+| 700 / 800 | solid high-contrast fill / its hover |
+| 900 | secondary text and icons |
+| 1000 | primary text and icons |
+
+Use `gray` by default; `gray-alpha` only where the surface underneath should show through (hover fills, borders on mixed surfaces, shadows).
+
+The shadcn names used by `components/ui` point at Geist steps:
+
+| Token | Geist step |
+|---|---|
+| `--background` | background-200 (page) |
+| `--card`, `--popover` | background-100 |
+| `--foreground` | gray-1000 |
+| `--muted-foreground` | gray-900 |
+| `--primary` / `--primary-foreground` | gray-1000 / background-100 (black button in light, white in dark) |
+| `--secondary`, `--muted` | gray-100 |
+| `--accent` (hover) | gray-alpha-200 |
+| `--border`, `--input` | gray-alpha-400 |
+| `--ring` | blue-700 (blue-900 in dark) |
+| `--destructive` | red-800 |
+| `--ok` / `--warn` / `--info` | green-700 / amber-700 / blue-700 — dots only |
+
+Status text uses the 900 step (`text-blue-900`, `text-green-900`, `text-amber-900`, `text-red-900`), never 700, to keep contrast. Status badges use Geist's subtle form: 200 fill + 900 text (`<Badge variant="blue">`).
 
 ## Typography
-- Geist Variable for everything; Geist Mono Variable for ids, branches, paths, commands, numbers that line up.
-- Scale: page title 22/28 600 · section title 15/20 600 · body 14/20 · meta 12/16. Page title ≥ 1.2 × nav label.
-- Sentence case everywhere. Headings upright, tracking −0.015em. No all-caps eyebrows.
+- Geist Sans for everything; Geist Mono for ids, branches, paths, commands, numbers that line up.
+- Geist classes are available as utilities: `text-heading-{32,24,20,16,14}`, `text-label-{16,14,13,12}`, `text-copy-{16,14,13}`, `text-button-{16,14,12}`.
+- Page title = heading-24 (`h1`), section = heading-16 (`h2`), sub-section = heading-14 (`h3`), body = copy-14, meta = label-12.
+- Sentence case everywhere. No all-caps eyebrows.
 
-## Space and shape
+## Space and shape (Geist materials)
 - 4 px scale (Tailwind defaults). Pane padding 20–24 px.
-- Radius 8 px for panes and inputs, full pill only for status badges.
-- Elevation: 1 px border; no shadows except popovers and dialogs.
+- Radius: 6 px for buttons, inputs and small surfaces (`rounded-md`); 12 px for cards, menus, popovers, dialogs (`rounded-xl`); 16 px fullscreen; full pill only for badges.
+- Elevation: surfaces are a 1 px `gray-alpha-400` border, no shadow. Floating layers use Geist shadows: `shadow-md` = menu, `shadow-lg` = modal (each includes its own border ring, so don't add `border`).
+- Focus: Geist focus ring (`shadow-focus`: 2 px background gap + 2 px blue).
+- Buttons: small 32 px (`size="sm"`), medium 40 px (default), large 48 px. Variants: default (black/white), secondary/outline (bordered), ghost (tertiary), destructive (red-800).
 
 ## Motion
-- Colour/opacity transitions ≤ 150 ms, `ease-out`. Running jobs show a slow pulse on their dot only.
+- Colour/opacity transitions 150 ms, `ease-out` (Geist). Running jobs show a slow pulse on their dot only.
 - `prefers-reduced-motion`: no pulse, no transitions.
 
 ## Copy
@@ -53,21 +71,4 @@ Status colours appear as dots and short labels, never as filled panels.
 - Empty states invite the next action. Errors say how to fix it.
 
 ## Exports
-
-### tokens.css (light)
-```css
-:root {
-  --background: oklch(98.6% 0.004 250);
-  --card: oklch(100% 0 0);
-  --foreground: oklch(22% 0.02 260);
-  --muted-foreground: oklch(50% 0.02 260);
-  --border: oklch(91.5% 0.008 255);
-  --primary: oklch(52% 0.2 262);
-  --ok: oklch(58% 0.15 155);
-  --warn: oklch(70% 0.15 75);
-  --destructive: oklch(56% 0.21 27);
-  --radius: 0.5rem;
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
-}
-```
+The source of truth is `web/src/index.css`. Do not hand-pick new colours; pick a Geist scale and step.

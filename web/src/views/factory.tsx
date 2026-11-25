@@ -98,7 +98,7 @@ function JobRow({ job, active, onSelect }: { job: Job; active: boolean; onSelect
       aria-current={active ? "true" : undefined}
       className={cn(
         "flex w-full flex-col gap-1 border-b px-4 py-3 text-left transition-colors",
-        "hover:bg-accent/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
+        "hover:bg-accent/60 focus-visible:shadow-focus focus-visible:outline-none focus-visible:ring-inset",
         active && "bg-accent hover:bg-accent",
       )}
     >
@@ -142,7 +142,7 @@ function JobDetail({ job, onBack }: { job: Job; onBack: () => void }) {
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border p-4 lg:grid-cols-4">
         <Field label="Rama" mono>
-          <span className="text-primary inline-flex items-center gap-1">
+          <span className="text-blue-900 inline-flex items-center gap-1">
             <GitBranch className="size-3.5 shrink-0" />
             {job.branch}
           </span>

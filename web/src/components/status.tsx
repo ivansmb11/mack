@@ -7,35 +7,35 @@ export function StatusDot({ up, className }: { up: boolean | undefined; classNam
     <span
       className={cn(
         "inline-block size-2 shrink-0 rounded-full",
-        up === undefined ? "bg-muted-foreground/40" : up ? "bg-ok" : "bg-destructive",
+        up === undefined ? "bg-gray-600" : up ? "bg-ok" : "bg-destructive",
         className,
       )}
     />
   );
 }
 
-const JOB_STATUS: Record<JobStatus, { label: string; className: string }> = {
-  queued: { label: "En cola", className: "text-muted-foreground border-input" },
-  running: { label: "Construyendo", className: "text-primary border-primary/30 bg-primary/8" },
-  done: { label: "Listo", className: "text-ok border-ok/30 bg-ok/8" },
-  incomplete: { label: "Incompleto", className: "text-foreground border-warn/50 bg-warn/12" },
-  failed: { label: "Falló", className: "text-destructive border-destructive/30 bg-destructive/8" },
+const JOB_STATUS: Record<JobStatus, { label: string; variant: "gray" | "blue" | "green" | "amber" | "red" }> = {
+  queued: { label: "En cola", variant: "gray" },
+  running: { label: "Construyendo", variant: "blue" },
+  done: { label: "Listo", variant: "green" },
+  incomplete: { label: "Incompleto", variant: "amber" },
+  failed: { label: "Falló", variant: "red" },
 };
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {
-  const { label, className } = JOB_STATUS[status];
+  const { label, variant } = JOB_STATUS[status];
   return (
-    <Badge variant="outline" className={cn("rounded-full font-medium", className)}>
-      {status === "running" && <span className="bg-primary mr-0.5 inline-block size-1.5 animate-pulse rounded-full" />}
+    <Badge variant={variant}>
+      {status === "running" && <span className="bg-blue-700 inline-block size-1.5 animate-pulse rounded-full" />}
       {label}
     </Badge>
   );
 }
 
 const DISPATCH_STATUS = {
-  ok: { label: "Respondió", className: "text-ok" },
+  ok: { label: "Respondió", className: "text-green-900" },
   out_of_domain: { label: "Fuera de su dominio", className: "text-muted-foreground" },
-  error: { label: "Error", className: "text-destructive" },
+  error: { label: "Error", className: "text-red-900" },
 } as const;
 
 export function DispatchStatus({ status }: { status: keyof typeof DISPATCH_STATUS }) {

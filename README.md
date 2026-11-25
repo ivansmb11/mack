@@ -125,7 +125,7 @@ npm run mackctl -- build ~/repos/app "Agrega GET /ping que regrese pong, con tes
 
 ## Dashboard
 
-El sistema de diseño del dashboard (`web/`) está fijado en [`design.md`](design.md): cockpit claro con acento cobalto, Geist, modo oscuro opcional y una barra superior con el estado en vivo. Cualquier pantalla nueva debe seguirlo; si necesita algo distinto, primero se cambia `design.md`.
+El sistema de diseño del dashboard (`web/`) está fijado en [`design.md`](design.md): el sistema Geist de Vercel (grises neutros, primario negro/blanco, color solo para estados), modo oscuro opcional y una barra superior con el estado en vivo. Cualquier pantalla nueva debe seguirlo; si necesita algo distinto, primero se cambia `design.md`.
 
 ## Desarrollo
 

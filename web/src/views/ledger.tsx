@@ -260,7 +260,7 @@ export function LedgerView() {
                         <div className="text-muted-foreground text-xs">{s.provider}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatUsd(s.monthlyUsd)}</TableCell>
-                      <TableCell className={cn("text-sm", days !== null && days <= 7 && "text-warn")}>
+                      <TableCell className={cn("text-sm", days !== null && days <= 7 && "text-amber-900")}>
                         {s.renewsOn ? (days !== null && days >= 0 ? `${s.renewsOn}, en ${days} ${days === 1 ? "día" : "días"}` : s.renewsOn) : "—"}
                       </TableCell>
                       <TableCell className="text-right">

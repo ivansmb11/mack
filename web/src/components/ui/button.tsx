@@ -3,31 +3,28 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
+/** Geist button: small 32 px, medium 40 px, large 48 px; 6 px radius; 150 ms colour transitions. */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-button-14 whitespace-nowrap transition-[color,background-color,box-shadow] duration-150 ease-out outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:bg-gray-100 disabled:text-gray-700 disabled:shadow-none aria-invalid:shadow-[0_0_0_1px_var(--ds-red-800)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        default: "bg-gray-1000 text-background-100 hover:bg-[color-mix(in_oklab,var(--ds-gray-1000)_85%,var(--ds-background-100))]",
+        destructive: "bg-red-800 text-white hover:bg-red-900",
+        outline: "bg-background-100 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] hover:bg-gray-alpha-200",
+        secondary: "bg-background-100 text-gray-1000 shadow-[0_0_0_1px_var(--ds-gray-alpha-400)] hover:bg-gray-alpha-200",
+        ghost: "text-gray-1000 hover:bg-gray-alpha-200",
+        link: "text-blue-900 underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        default: "h-10 px-3 has-[>svg]:px-2.5",
+        xs: "h-6 gap-1 rounded-sm px-1.5 text-button-12 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 gap-1.5 px-2.5 has-[>svg]:px-2",
+        lg: "h-12 rounded-lg px-4 text-button-16 has-[>svg]:px-3.5",
+        icon: "size-10",
+        "icon-xs": "size-6 rounded-sm [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        "icon-lg": "size-12 rounded-lg",
       },
     },
     defaultVariants: {
