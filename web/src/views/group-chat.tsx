@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Loader2, Trash2, Users } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { BotAvatar, botColor, GroupAvatar } from "@/components/bot-avatar";
+import { TypingBubble } from "@/components/chat";
 import { Markdown } from "@/components/markdown";
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import { keys, useBots, useGroupMessages, useGroupMutations, useGroups } from "@
 import { formatClock } from "@/lib/format";
 import { postSse } from "@/lib/sse";
 import type { Bot, Group, GroupMessage } from "@/lib/types";
+import { enterAnimation, messageGap, useFreshIds } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 
 const MENTION_AT_CURSOR = /@([a-z0-9-]*)$/;
@@ -134,6 +136,8 @@ export function GroupChatView({ id }: { id: string }) {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [messages.data, typing]);
 
+  const isFresh = useFreshIds(id, messages.data?.map((m) => m.id));
+
   const mentionQuery = draft.match(MENTION_AT_CURSOR)?.[1];
   const mentionOptions = mentionQuery === undefined ? [] : (group?.members ?? []).filter((m) => m.startsWith(mentionQuery));
 
@@ -217,12 +221,13 @@ export function GroupChatView({ id }: { id: string }) {
             </div>
           </div>
         ) : (
-          <ol className="mx-auto max-w-3xl space-y-4">
-            {history.map((m) => {
+          <ol className="mx-auto flex max-w-3xl flex-col">
+            {history.map((m, i) => {
               const mine = m.author === "user";
+              const sameAuthor = history[i - 1]?.author === m.author;
               return (
-                <li key={m.id} className={cn("flex flex-col", mine && "items-end")}>
-                  {!mine && (
+                <li key={m.id} className={cn("flex flex-col", mine && "items-end", messageGap(i === 0, sameAuthor), isFresh(m.id) && enterAnimation)}>
+                  {!mine && !sameAuthor && (
                     <span className="mb-1 flex items-center gap-2 text-sm font-medium" style={{ color: botColor(m.author, looks[m.author]?.color) }}>
                       <BotAvatar name={m.author} {...looks[m.author]} size={20} />
                       {m.author}
@@ -230,9 +235,10 @@ export function GroupChatView({ id }: { id: string }) {
                     </span>
                   )}
                   <div
+                    title={formatClock(m.createdAt)}
                     className={cn(
-                      "w-fit max-w-[min(68ch,85%)] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed",
-                      mine ? "bg-primary rounded-br-md whitespace-pre-wrap text-white" : "bg-secondary rounded-tl-md",
+                      "w-fit max-w-[min(68ch,85%)] rounded-xl px-4 py-2.5 text-[15px] leading-relaxed",
+                      mine ? "bg-primary text-primary-foreground rounded-br-sm whitespace-pre-wrap" : "bg-secondary rounded-tl-sm",
                       m.error && "text-destructive",
                     )}
                   >
@@ -242,10 +248,17 @@ export function GroupChatView({ id }: { id: string }) {
               );
             })}
             {typing && (
-              <li className="text-muted-foreground flex items-center gap-2 text-sm">
-                <BotAvatar name={typing} {...looks[typing]} state="thinking" size={20} />
-                {typing} está escribiendo
-                <Loader2 className="size-3.5 animate-spin" />
+              <li role="status" className={cn("flex flex-col", messageGap(history.length === 0, history.at(-1)?.author === typing), enterAnimation)}>
+                {history.at(-1)?.author !== typing && (
+                  <span className="mb-1 flex items-center gap-2 text-sm font-medium" style={{ color: botColor(typing, looks[typing]?.color) }}>
+                    <BotAvatar name={typing} {...looks[typing]} state="thinking" size={20} />
+                    {typing}
+                  </span>
+                )}
+                <span className="flex items-end gap-2">
+                  <TypingBubble className="rounded-tl-sm rounded-bl-xl" />
+                  <span className="text-muted-foreground text-label-12 pb-1">{typing} está escribiendo</span>
+                </span>
               </li>
             )}
           </ol>
@@ -255,7 +268,7 @@ export function GroupChatView({ id }: { id: string }) {
 
       <form onSubmit={onSubmit} className="relative px-4 pt-1 pb-4">
         {mentionOptions.length > 0 && (
-          <div className="bg-popover absolute bottom-full left-1/2 mb-1 w-[min(20rem,calc(100%-2rem))] -translate-x-1/2 rounded-lg border p-1 shadow-lg" role="listbox">
+          <div className="bg-popover absolute bottom-full left-1/2 mb-1 w-[min(20rem,calc(100%-2rem))] -translate-x-1/2 rounded-xl p-1 shadow-md" role="listbox">
             {mentionOptions.map((m, i) => (
               <button
                 key={m}
@@ -270,7 +283,7 @@ export function GroupChatView({ id }: { id: string }) {
             ))}
           </div>
         )}
-        <div className="bg-card focus-within:ring-ring/50 mx-auto flex max-w-3xl items-end gap-2 rounded-3xl border p-1.5 pl-4 focus-within:ring-2">
+        <div className="bg-card mx-auto flex max-w-3xl items-end gap-2 rounded-3xl border p-1.5 pl-4 transition-[border-color,box-shadow] duration-150 focus-within:border-gray-alpha-600 focus-within:shadow-[0_0_0_4px_var(--ds-gray-alpha-200)]">
           <Textarea
             ref={input}
             value={draft}
@@ -278,7 +291,7 @@ export function GroupChatView({ id }: { id: string }) {
             onKeyDown={onKeyDown}
             placeholder={group ? `Escribe en ${group.name}, menciona con @` : ""}
             rows={1}
-            className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
+            className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:shadow-none dark:bg-transparent"
             aria-label="Mensaje para el grupo"
           />
           <Button type="submit" size="icon" className="rounded-full" disabled={!draft.trim() || busy} aria-label="Enviar">

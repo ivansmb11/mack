@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, CalendarClock, Loader2, PanelRight, Paperclip, ShieldAlert, Square, Wrench } from "lucide-react";
-import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type ClipboardEvent, type DragEvent, type FormEvent, type KeyboardEvent, Fragment, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AvatarState } from "open-bot-avatar";
 import { MessageAttachments, PendingAttachments } from "@/components/attachments";
 import { BotAvatar } from "@/components/bot-avatar";
+import { TypingBubble } from "@/components/chat";
 import { Markdown } from "@/components/markdown";
 import { StatusDot } from "@/components/status";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { MAX_ATTACHMENTS, type PendingAttachment, prepareAttachment } from "@/li
 import { formatClock } from "@/lib/format";
 import { postSse } from "@/lib/sse";
 import type { ApprovalChoice, ApprovalRequest, ChatMessage } from "@/lib/types";
+import { enterAnimation, messageGap } from "@/lib/chat";
 import { cn } from "@/lib/utils";
 import { BotPanel, type PanelTab } from "@/views/bot-panel";
 
@@ -33,6 +35,8 @@ interface LiveTurn {
   runId?: string;
   approval?: ApprovalRequest;
   error?: string;
+  /** History length when the turn started; later rows are this turn, already shown live. */
+  historyCount: number;
 }
 
 /** What the bot's face shows while a turn is in flight. */
@@ -60,7 +64,7 @@ const dayKey = (iso: string) => new Date(iso).toDateString();
 function DaySeparator({ iso }: { iso: string }) {
   const today = dayKey(new Date().toISOString()) === dayKey(iso);
   return (
-    <li className="text-muted-foreground py-2 text-center text-xs">
+    <li className="text-muted-foreground text-label-12 mt-6 mb-1 text-center first:mt-0">
       {today ? "Hoy" : dayLabel.format(new Date(iso))}, {formatClock(iso)}
     </li>
   );
@@ -100,8 +104,8 @@ function Bubble({ role, children, error }: { role: "user" | "assistant"; childre
   return (
     <div
       className={cn(
-        "w-fit max-w-[min(68ch,85%)] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed",
-        role === "user" ? "bg-primary ml-auto rounded-br-md text-white" : "bg-secondary rounded-bl-md",
+        "w-fit max-w-[min(68ch,85%)] rounded-xl px-4 py-2.5 text-[15px] leading-relaxed",
+        role === "user" ? "bg-primary text-primary-foreground ml-auto rounded-br-sm" : "bg-secondary rounded-bl-sm",
         error && "text-destructive",
       )}
     >
@@ -124,9 +128,9 @@ function ApprovalCard({ approval, bot, onAnswered }: { approval: ApprovalRequest
     }
   }
   return (
-    <div className="border-warn/40 bg-warn/5 max-w-[min(68ch,85%)] rounded-xl border p-4" role="alert">
+    <div className="border-amber-400 bg-amber-100 max-w-[min(68ch,85%)] rounded-xl border p-4" role="alert">
       <p className="flex items-center gap-2 font-medium">
-        <ShieldAlert className="text-warn size-4" />
+        <ShieldAlert className="text-amber-900 size-4" />
         {bot} necesita tu permiso
       </p>
       {approval.description && <p className="text-muted-foreground mt-1 text-sm">{approval.description}</p>}
@@ -152,12 +156,12 @@ function LiveTools({ tools }: { tools: ToolRun[] }) {
           key={i}
           className={cn(
             "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs",
-            t.state === "running" ? "border-primary/50" : "border-input text-muted-foreground",
+            t.state === "running" ? "border-blue-500 text-blue-900" : "border-input text-muted-foreground",
             t.state === "failed" && "border-destructive/40 text-destructive",
           )}
           title={t.preview}
         >
-          {t.state === "running" ? <Loader2 className="text-primary size-3 animate-spin" /> : <Wrench className="size-3" />}
+          {t.state === "running" ? <Loader2 className="text-blue-700 size-3 animate-spin" /> : <Wrench className="size-3" />}
           <span className="truncate">{t.name}</span>
         </span>
       ))}
@@ -264,7 +268,7 @@ export function BotChatView({ name }: { name: string }) {
     if ((!message && !attachments.length) || streaming) return;
     setDraft("");
     setPending([]);
-    let turn: LiveTurn = { user: message, attachments, reply: "", tools: [] };
+    let turn: LiveTurn = { user: message, attachments, reply: "", tools: [], historyCount: messages.data?.length ?? 0 };
     setLive(turn);
     try {
       const body = { message, attachments: attachments.map(({ name, type, data }) => ({ name, type, data })) };
@@ -298,7 +302,7 @@ export function BotChatView({ name }: { name: string }) {
     }
   };
 
-  const history: ChatMessage[] = messages.data ?? [];
+  const history: ChatMessage[] = live ? (messages.data ?? []).slice(0, live.historyCount) : (messages.data ?? []);
   const empty = !messages.isLoading && history.length === 0 && !live;
   const suggestions = name === "mack" ? MACK_SUGGESTIONS : BOT_SUGGESTIONS;
 
@@ -317,7 +321,7 @@ export function BotChatView({ name }: { name: string }) {
         onDrop={onDrop}
       >
         {dragging && (
-          <div className="bg-background/80 border-primary pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-2xl border-2 border-dashed">
+          <div className="bg-blue-100/90 border-blue-700 text-blue-900 pointer-events-none absolute inset-3 z-10 grid place-items-center rounded-xl border-2 border-dashed">
             <p className="text-lg">Suelta para adjuntarlo a {name}</p>
           </div>
         )}
@@ -344,8 +348,8 @@ export function BotChatView({ name }: { name: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6" aria-live="polite">
           {messages.isLoading ? (
             <div className="mx-auto max-w-3xl space-y-4">
-              <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
-              <Skeleton className="h-24 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-10 w-1/2 rounded-xl" />
+              <Skeleton className="h-24 w-2/3 rounded-xl" />
             </div>
           ) : messages.isError ? (
             <p className="text-muted-foreground mx-auto max-w-md pt-20 text-center">
@@ -367,26 +371,33 @@ export function BotChatView({ name }: { name: string }) {
               </div>
             </div>
           ) : (
-            <ol className="mx-auto max-w-3xl space-y-3">
-              {history.map((m, i) => (
-                <li key={m.id} className="contents">
-                  {(i === 0 || dayKey(history[i - 1].at) !== dayKey(m.at)) && <DaySeparator iso={m.at} />}
-                  {m.role === "routine" ? (
-                    <RoutinePost message={m} onOpenRoutines={() => setPanel("rutinas")} />
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {m.role === "assistant" && <ToolsUsed tools={m.toolsUsed} />}
-                      {m.role === "user" && <MessageAttachments bot={name} items={m.attachments} />}
-                      {m.content && (
-                        <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
+            <ol className="mx-auto flex max-w-3xl flex-col">
+              {history.map((m, i) => {
+                const prev = history[i - 1];
+                const newDay = !prev || dayKey(prev.at) !== dayKey(m.at);
+                const sameAuthor = !newDay && prev.role === m.role && m.role !== "routine";
+                return (
+                  <Fragment key={m.id}>
+                    {newDay && <DaySeparator iso={m.at} />}
+                    <li className={cn("flex flex-col gap-1.5", messageGap(newDay, sameAuthor))}>
+                      {m.role === "routine" ? (
+                        <RoutinePost message={m} onOpenRoutines={() => setPanel("rutinas")} />
+                      ) : (
+                        <>
+                          {m.role === "assistant" && <ToolsUsed tools={m.toolsUsed} />}
+                          {m.role === "user" && <MessageAttachments bot={name} items={m.attachments} />}
+                          {m.content && (
+                            <Bubble role={m.role}>{m.role === "assistant" ? <Markdown>{m.content}</Markdown> : <span className="whitespace-pre-wrap">{m.content}</span>}</Bubble>
+                          )}
+                        </>
                       )}
-                    </div>
-                  )}
-                </li>
-              ))}
+                    </li>
+                  </Fragment>
+                );
+              })}
               {live && (
                 <>
-                  <li className="flex flex-col gap-1.5">
+                  <li className={cn("flex flex-col gap-1.5", messageGap(history.length === 0, history.at(-1)?.role === "user"), enterAnimation)}>
                     <PendingAttachments items={live.attachments} className="justify-end" />
                     {live.user && (
                       <Bubble role="user">
@@ -394,7 +405,7 @@ export function BotChatView({ name }: { name: string }) {
                       </Bubble>
                     )}
                   </li>
-                  <li className="flex flex-col gap-2">
+                  <li className={cn("mt-5 flex flex-col gap-2", enterAnimation)}>
                     <LiveTools tools={live.tools} />
                     {live.approval && <ApprovalCard approval={live.approval} bot={name} onAnswered={() => setLive((t) => t && { ...t, approval: undefined })} />}
                     {(live.reply || live.error) && (
@@ -403,10 +414,12 @@ export function BotChatView({ name }: { name: string }) {
                       </Bubble>
                     )}
                     {!live.reply && !live.error && !live.approval && (
-                      <span className="text-muted-foreground flex items-center gap-2 text-sm">
-                        <BotAvatar name={name} avatar={bot?.avatar} color={bot?.color} size={22} state={faceState(live)} />
-                        {name} está {live.tools.length ? "trabajando" : "pensando"}
-                      </span>
+                      <div role="status" className="flex items-end gap-2">
+                        <TypingBubble />
+                        <span className="text-muted-foreground text-label-12 pb-1">
+                          {name} está {live.tools.some((t) => t.state === "running") ? "trabajando" : "pensando"}
+                        </span>
+                      </div>
                     )}
                   </li>
                 </>
@@ -417,7 +430,7 @@ export function BotChatView({ name }: { name: string }) {
         </div>
 
         <form onSubmit={onSubmit} className="px-4 pt-1 pb-4">
-          <div className="bg-card focus-within:ring-ring/50 mx-auto flex max-w-3xl flex-wrap items-end gap-2 rounded-3xl border p-1.5 focus-within:ring-2">
+          <div className="bg-card mx-auto flex max-w-3xl flex-wrap items-end gap-2 rounded-3xl border p-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-gray-alpha-600 focus-within:shadow-[0_0_0_4px_var(--ds-gray-alpha-200)]">
             <PendingAttachments items={pending} onRemove={unattach} className="w-full px-2.5 pt-2" />
             <input
               ref={picker}
@@ -439,7 +452,7 @@ export function BotChatView({ name }: { name: string }) {
               onKeyDown={onKeyDown}
               placeholder={`Escríbele a ${name}`}
               rows={1}
-              className="max-h-48 min-h-10 flex-1 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              className="max-h-48 min-h-10 flex-1 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:shadow-none dark:bg-transparent"
               aria-label={`Mensaje para ${name}`}
             />
             {streaming ? (
